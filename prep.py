@@ -110,7 +110,7 @@ def get_ai_cleaning_suggestions(data):
             return "Unable to get AI cleaning suggestions at this time."
         
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a helpful data cleaning assistant."},
                 {"role": "user", "content": f"Given the following data:\n\n{data.describe().to_string()}\n\nProvide suggestions for data cleaning:"}
