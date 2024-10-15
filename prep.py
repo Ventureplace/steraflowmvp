@@ -52,54 +52,64 @@ def initialize_openai_client():
         client = None
 
 def clean_dataframe(df, options):
+    if not isinstance(df, pd.DataFrame):
+        st.error(f"Input data is not a pandas DataFrame. Type: {type(df)}")
+        return None
+
     cleaned_df = df.copy()
 
-    if options['remove_duplicates']:
-        cleaned_df = cleaned_df.drop_duplicates()
+    try:
+        if options['remove_duplicates']:
+            cleaned_df = cleaned_df.drop_duplicates()
 
-    if options['handle_missing']:
-        for col in cleaned_df.columns:
-            if cleaned_df[col].isnull().sum() > 0:
-                if cleaned_df[col].dtype in ['int64', 'float64']:
-                    if options['missing_numeric_method'] == 'mean':
-                        imputer = SimpleImputer(strategy='mean')
-                    elif options['missing_numeric_method'] == 'median':
-                        imputer = SimpleImputer(strategy='median')
-                    else:  # mode
-                        imputer = SimpleImputer(strategy='most_frequent')
-                    cleaned_df[col] = imputer.fit_transform(cleaned_df[[col]])
-                else:
-                    cleaned_df[col] = cleaned_df[col].fillna(cleaned_df[col].mode()[0])
+        if options['handle_missing']:
+            for col in cleaned_df.columns:
+                if cleaned_df[col].isnull().sum() > 0:
+                    if pd.api.types.is_numeric_dtype(cleaned_df[col]):
+                        if options['missing_numeric_method'] == 'mean':
+                            imputer = SimpleImputer(strategy='mean')
+                        elif options['missing_numeric_method'] == 'median':
+                            imputer = SimpleImputer(strategy='median')
+                        else:  # mode
+                            imputer = SimpleImputer(strategy='most_frequent')
+                        cleaned_df[col] = imputer.fit_transform(cleaned_df[[col]])
+                    else:
+                        cleaned_df[col] = cleaned_df[col].fillna(cleaned_df[col].mode()[0])
 
-    if options['handle_outliers']:
-        for col in cleaned_df.select_dtypes(include=[np.number]).columns:
-            if options['outlier_method'] == 'IQR':
-                Q1 = cleaned_df[col].quantile(0.25)
-                Q3 = cleaned_df[col].quantile(0.75)
-                IQR = Q3 - Q1
-                lower_bound = Q1 - 1.5 * IQR
-                upper_bound = Q3 + 1.5 * IQR
-                cleaned_df[col] = cleaned_df[col].clip(lower_bound, upper_bound)
-            elif options['outlier_method'] == 'zscore':
-                z_scores = np.abs(stats.zscore(cleaned_df[col]))
-                cleaned_df[col] = cleaned_df[col].mask(z_scores > 3, cleaned_df[col].median())
+        if options['handle_outliers']:
+            numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
+            for col in numeric_cols:
+                if options['outlier_method'] == 'IQR':
+                    Q1 = cleaned_df[col].quantile(0.25)
+                    Q3 = cleaned_df[col].quantile(0.75)
+                    IQR = Q3 - Q1
+                    lower_bound = Q1 - 1.5 * IQR
+                    upper_bound = Q3 + 1.5 * IQR
+                    cleaned_df[col] = cleaned_df[col].clip(lower_bound, upper_bound)
+                elif options['outlier_method'] == 'zscore':
+                    z_scores = np.abs(stats.zscore(cleaned_df[col]))
+                    cleaned_df[col] = cleaned_df[col].mask(z_scores > 3, cleaned_df[col].median())
 
-    if options['normalize_data']:
-        scaler = MinMaxScaler() if options['scaling_method'] == 'minmax' else StandardScaler()
-        numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
-        cleaned_df[numeric_cols] = scaler.fit_transform(cleaned_df[numeric_cols])
+        if options['normalize_data']:
+            scaler = MinMaxScaler() if options['scaling_method'] == 'minmax' else StandardScaler()
+            numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
+            cleaned_df[numeric_cols] = scaler.fit_transform(cleaned_df[numeric_cols])
 
-    if options['remove_low_variance']:
-        variance = cleaned_df.var()
-        cleaned_df = cleaned_df.loc[:, variance > options['variance_threshold']]
+        if options['remove_low_variance']:
+            variance = cleaned_df.var()
+            cleaned_df = cleaned_df.loc[:, variance > options['variance_threshold']]
 
-    if options['handle_skewness']:
-        numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
-        for col in numeric_cols:
-            if abs(stats.skew(cleaned_df[col])) > options['skew_threshold']:
-                cleaned_df[col] = np.log1p(cleaned_df[col] - cleaned_df[col].min() + 1)
+        if options['handle_skewness']:
+            numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
+            for col in numeric_cols:
+                if abs(stats.skew(cleaned_df[col])) > options['skew_threshold']:
+                    cleaned_df[col] = np.log1p(cleaned_df[col] - cleaned_df[col].min() + 1)
 
-    return cleaned_df
+        return cleaned_df
+
+    except Exception as e:
+        st.error(f"An error occurred during data cleaning: {str(e)}")
+        return None
 
 def show(project_name):
     st.title(f"Data Cleaning for Project: {project_name}")
