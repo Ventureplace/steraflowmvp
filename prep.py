@@ -118,15 +118,19 @@ def clean_dataframe(df, options):
         return None
 
 def get_ai_cleaning_suggestions(data):
-    client = OpenAI(api_key=st.secrets["openai_api_key"])
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful data cleaning assistant."},
-            {"role": "user", "content": f"Given the following data:\n\n{data.describe().to_string()}\n\nProvide suggestions for data cleaning:"}
-        ]
-    )
-    return response.choices[0].message.content
+    try:
+        client = OpenAI(api_key=st.secrets["openai_api_key"])
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful data cleaning assistant."},
+                {"role": "user", "content": f"Given the following data:\n\n{data.describe().to_string()}\n\nProvide suggestions for data cleaning:"}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Error getting AI cleaning suggestions: {str(e)}")
+        return "Unable to get AI cleaning suggestions at this time."
 
 def modify_data_with_ai(prompt, data):
     client = OpenAI(api_key=st.secrets["openai_api_key"])
@@ -160,7 +164,7 @@ def show(project_name):
     st.dataframe(data)  # Display the original data as a dataframe
     
     st.subheader("Edit Data")
-    edited_data = st.data_editor(data, num_rows="dynamic")
+    edited_data = st.data_editor(data, num_rows="dynamic", key=f"editor_{project_name}_original")
     
     if not edited_data.equals(data):
         st.session_state.projects[project_name]['data'] = edited_data
@@ -194,7 +198,7 @@ def show(project_name):
             st.dataframe(cleaned_data)  # Display the cleaned data as a dataframe
             
             st.subheader("Edit Cleaned Data")
-            final_cleaned_data = st.data_editor(cleaned_data, num_rows="dynamic")
+            final_cleaned_data = st.data_editor(cleaned_data, num_rows="dynamic", key=f"editor_{project_name}_cleaned")
             
             if not final_cleaned_data.equals(cleaned_data):
                 st.session_state.projects[project_name]['cleaned_data'] = final_cleaned_data
@@ -228,8 +232,9 @@ def show(project_name):
 
     st.subheader("AI Cleaning Suggestions")
     if st.button("Get AI Cleaning Suggestions"):
-        suggestions = get_ai_cleaning_suggestions(data)
-        st.write(suggestions)
+        with st.spinner("Getting AI suggestions..."):
+            suggestions = get_ai_cleaning_suggestions(data)
+            st.write(suggestions)
 
     st.subheader("Modify Data with AI")
     modification_prompt = st.text_input("Describe how you want to modify the data:")
