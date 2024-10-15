@@ -117,6 +117,28 @@ def clean_dataframe(df, options):
         st.error(f"An error occurred during data cleaning: {str(e)}")
         return None
 
+def get_ai_cleaning_suggestions(data):
+    client = OpenAI(api_key=st.secrets["openai_api_key"])
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful data cleaning assistant."},
+            {"role": "user", "content": f"Given the following data:\n\n{data.describe().to_string()}\n\nProvide suggestions for data cleaning:"}
+        ]
+    )
+    return response.choices[0].message.content
+
+def modify_data_with_ai(prompt, data):
+    client = OpenAI(api_key=st.secrets["openai_api_key"])
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful data modification assistant. Provide Python code to modify the data based on the user's request."},
+            {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser request: {prompt}\n\nProvide Python code to modify the data:"}
+        ]
+    )
+    return response.choices[0].message.content
+
 def show(project_name):
     st.title(f"Data Cleaning for Project: {project_name}")
 
@@ -134,8 +156,17 @@ def show(project_name):
         st.error("The data is not in the correct format. Please upload a valid dataset.")
         return
 
-    st.subheader("Original Data Sample")
-    st.write(data.head())
+    st.subheader("Original Data")
+    st.dataframe(data)  # Display the original data as a dataframe
+    
+    st.subheader("Edit Data")
+    edited_data = st.data_editor(data, num_rows="dynamic")
+    
+    if not edited_data.equals(data):
+        st.session_state.projects[project_name]['data'] = edited_data
+        st.success("Data updated successfully!")
+    
+    data = edited_data  # Use the edited data for further processing
 
     st.subheader("Data Cleaning Options")
 
@@ -159,8 +190,17 @@ def show(project_name):
             st.session_state.projects[project_name]['cleaned_data'] = cleaned_data
             st.success("Data cleaning applied and saved successfully!")
 
-            st.subheader("Cleaned Data Sample")
-            st.write(cleaned_data.head())
+            st.subheader("Cleaned Data")
+            st.dataframe(cleaned_data)  # Display the cleaned data as a dataframe
+            
+            st.subheader("Edit Cleaned Data")
+            final_cleaned_data = st.data_editor(cleaned_data, num_rows="dynamic")
+            
+            if not final_cleaned_data.equals(cleaned_data):
+                st.session_state.projects[project_name]['cleaned_data'] = final_cleaned_data
+                st.success("Cleaned data updated successfully!")
+            
+            cleaned_data = final_cleaned_data  # Use the final edited cleaned data
 
             st.subheader("Cleaning Summary")
             st.write(f"Original shape: {data.shape}")
@@ -185,6 +225,25 @@ def show(project_name):
                 st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
         else:
             st.error("Data cleaning failed. Please check your data and try again.")
+
+    st.subheader("AI Cleaning Suggestions")
+    if st.button("Get AI Cleaning Suggestions"):
+        suggestions = get_ai_cleaning_suggestions(data)
+        st.write(suggestions)
+
+    st.subheader("Modify Data with AI")
+    modification_prompt = st.text_input("Describe how you want to modify the data:")
+    if modification_prompt:
+        modification_code = modify_data_with_ai(modification_prompt, data)
+        st.code(modification_code, language="python")
+        if st.button("Apply Modification"):
+            try:
+                exec(modification_code)
+                st.session_state.projects[project_name]['data'] = data
+                st.success("Data modified successfully!")
+                st.dataframe(data)
+            except Exception as e:
+                st.error(f"Error modifying data: {str(e)}")
 
 if __name__ == "__main__":
     if 'projects' not in st.session_state:

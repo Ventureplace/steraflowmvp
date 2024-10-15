@@ -3,6 +3,29 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+from openai import OpenAI
+
+def get_ai_response(prompt, data):
+    client = OpenAI(api_key=st.secrets["openai_api_key"])
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful data analysis assistant."},
+            {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser question: {prompt}"}
+        ]
+    )
+    return response.choices[0].message.content
+
+def modify_data_with_ai(prompt, data):
+    client = OpenAI(api_key=st.secrets["openai_api_key"])
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful data modification assistant. Provide Python code to modify the data based on the user's request."},
+            {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser request: {prompt}\n\nProvide Python code to modify the data:"}
+        ]
+    )
+    return response.choices[0].message.content
 
 def show(project_name):
     st.title(f"Dashboard Summary for Project: {project_name}")
@@ -74,6 +97,26 @@ def show(project_name):
         steps.append("✅ Features Engineered")
     for step in steps:
         st.write(step)
+
+    st.subheader("Chat with AI about the Data")
+    user_input = st.text_input("Ask a question about the data:")
+    if user_input:
+        ai_response = get_ai_response(user_input, data)
+        st.write("AI Response:", ai_response)
+
+    st.subheader("Modify Data with AI")
+    modification_prompt = st.text_input("Describe how you want to modify the data:")
+    if modification_prompt:
+        modification_code = modify_data_with_ai(modification_prompt, data)
+        st.code(modification_code, language="python")
+        if st.button("Apply Modification"):
+            try:
+                exec(modification_code)
+                st.session_state.projects[project_name]['cleaned_data'] = data
+                st.success("Data modified successfully!")
+                st.dataframe(data)
+            except Exception as e:
+                st.error(f"Error modifying data: {str(e)}")
 
     # Download full report as CSV
     csv = data.to_csv(index=False)
