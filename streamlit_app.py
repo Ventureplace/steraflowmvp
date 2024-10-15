@@ -68,3 +68,10 @@ if st.session_state.projects[project_name]['data'] is not None:
         st.write(st.session_state.projects[project_name]['cleaned_data'].head())
 else:
     st.warning("No data available. Please upload data first.")
+
+# Before using any OpenAI features, check if the client is initialized
+if 'client' in globals() and globals()['client'] is not None:
+    # Use OpenAI features here
+    pass
+else:
+    st.warning("OpenAI client is not initialized. Some features may not be available.")

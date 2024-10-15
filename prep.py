@@ -26,16 +26,27 @@ client = None
 
 def initialize_openai_client():
     global client
+    api_key = None
+
+    # Try to get the API key from Streamlit secrets
     try:
         api_key = st.secrets["openai_api_key"]
-    except FileNotFoundError:
-        st.warning("No secrets file found. You'll need to input your OpenAI API key manually.")
+    except KeyError:
+        st.warning("OpenAI API key not found in Streamlit secrets.")
+
+    # If API key is not in secrets, prompt the user
+    if not api_key:
         api_key = st.text_input("Enter your OpenAI API key:", type="password")
-    
+        if api_key:
+            st.success("API key entered successfully!")
+        else:
+            st.error("Please enter a valid OpenAI API key to use the AI-powered features.")
+
+    # Initialize the client if we have an API key
     if api_key:
         client = OpenAI(api_key=api_key)
     else:
-        st.error("Please enter a valid OpenAI API key to use the AI-powered SQL generation feature.")
+        client = None
 
 def clean_dataframe(df, remove_duplicates, handle_missing, handle_outliers, normalize_data, variance_threshold, skew_threshold):
     if DATAMANCER_AVAILABLE:
