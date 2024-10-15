@@ -10,3 +10,4 @@ pydantic
 openpyxl
 PyPDF2
 configparser
+openai
