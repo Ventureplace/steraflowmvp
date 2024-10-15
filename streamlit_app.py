@@ -49,17 +49,29 @@ elif page == "Clean Data":
         skew_threshold = st.slider("Skew Threshold", 0.0, 1.0, 0.5, 0.01)
 
         if st.button("Apply Data Cleaning"):
-            cleaned_data = clean_dataframe(
-                data,
-                remove_duplicates,
-                handle_missing,
-                handle_outliers,
-                normalize_data,
-                variance_threshold,
-                skew_threshold
-            )
-            st.session_state.projects[project_name]['cleaned_data'] = cleaned_data
-            st.success("Data cleaning applied and saved successfully!")
+            options = {
+                'remove_duplicates': remove_duplicates,
+                'handle_missing': handle_missing,
+                'handle_outliers': handle_outliers,
+                'normalize_data': normalize_data,
+                'variance_threshold': variance_threshold,
+                'skew_threshold': skew_threshold
+            }
+            cleaned_data = clean_dataframe(data, options)
+            if cleaned_data is not None:
+                st.session_state.projects[project_name]['cleaned_data'] = cleaned_data
+                st.success("Data cleaning applied and saved successfully!")
+
+                st.subheader("Cleaned Data Sample")
+                st.write(cleaned_data.head())
+
+                st.subheader("Cleaning Summary")
+                st.write(f"Original shape: {data.shape}")
+                st.write(f"Cleaned shape: {cleaned_data.shape}")
+                
+                # ... rest of the summary ...
+            else:
+                st.error("Data cleaning failed. Please check your data and try again.")
     else:
         st.warning("No data available. Please upload data first.")
 
