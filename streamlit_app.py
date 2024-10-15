@@ -30,6 +30,11 @@ if project_name not in st.session_state.projects:
     st.session_state.projects[project_name] = {'data': None, 'cleaned_data': None}
 
 def get_data_insights(data):
+    global client
+    if client is None:
+        st.error("OpenAI client is not initialized. Please enter your API key.")
+        return "Unable to get data insights at this time."
+    
     data_description = data.describe().to_string()
     prompt = f"Given the following dataset description, provide some insights and suggestions for data cleaning:\n\n{data_description}\n\nInsights and suggestions:"
     
