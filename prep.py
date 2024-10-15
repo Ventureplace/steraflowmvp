@@ -27,28 +27,13 @@ client = None
 
 def initialize_openai_client():
     global client
-    api_key = None
-
-    # Try to get the API key from Streamlit secrets
-    try:
-        api_key = st.secrets["openai_api_key"]
-    except KeyError:
-        st.warning("OpenAI API key not found in Streamlit secrets.")
-
-    # If API key is not in secrets, prompt the user
-    if not api_key:
-        api_key = st.text_input("Enter your OpenAI API key:", type="password")
-        if api_key:
-            st.success("API key entered successfully!")
-        else:
-            st.error("Please enter a valid OpenAI API key to use the AI-powered features.")
-
-    # Initialize the client if we have an API key
+    api_key = st.text_input("Enter your OpenAI API key:", type="password")
     if api_key:
         client = OpenAI(api_key=api_key)
+        st.success("API key entered successfully!")
     else:
         client = None
-
+        st.error("Please enter a valid OpenAI API key to use the AI-powered features.")
     return client
 
 def clean_dataframe(df, options):
@@ -118,8 +103,12 @@ def clean_dataframe(df, options):
         return None
 
 def get_ai_cleaning_suggestions(data):
+    global client
     try:
-        client = OpenAI(api_key=st.secrets["openai_api_key"])
+        if client is None:
+            st.error("OpenAI client is not initialized. Please enter your API key.")
+            return "Unable to get AI cleaning suggestions at this time."
+        
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -133,7 +122,11 @@ def get_ai_cleaning_suggestions(data):
         return "Unable to get AI cleaning suggestions at this time."
 
 def modify_data_with_ai(prompt, data):
-    client = OpenAI(api_key=st.secrets["openai_api_key"])
+    global client
+    if client is None:
+        st.error("OpenAI client is not initialized. Please enter your API key.")
+        return "Unable to modify data with AI at this time."
+    
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
