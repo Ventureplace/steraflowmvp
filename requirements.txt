@@ -1,1 +1,12 @@
 streamlit
+numpy>=1.0.0,<2.0.0
+pandas>=2.0.0,<3.0.0
+pydateinfer==0.3.0
+python-dateutil>=2.1
+scipy>=1.7.3
+dataclasses-json>=0.6.3,<0.7.0
+colorlog>=6.5.0,<7.0.0
+pydantic
+openpyxl
+PyPDF2
+configparser
