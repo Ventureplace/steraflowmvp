@@ -6,8 +6,6 @@ import os
 from openai import OpenAI
 import json
 from io import BytesIO
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from scipy import stats
 
 # Add the parent directory to sys.path
@@ -67,14 +65,13 @@ def clean_dataframe(df, options):
                 if cleaned_df[col].isnull().sum() > 0:
                     if pd.api.types.is_numeric_dtype(cleaned_df[col]):
                         if options['missing_numeric_method'] == 'mean':
-                            imputer = SimpleImputer(strategy='mean')
+                            cleaned_df[col].fillna(cleaned_df[col].mean(), inplace=True)
                         elif options['missing_numeric_method'] == 'median':
-                            imputer = SimpleImputer(strategy='median')
+                            cleaned_df[col].fillna(cleaned_df[col].median(), inplace=True)
                         else:  # mode
-                            imputer = SimpleImputer(strategy='most_frequent')
-                        cleaned_df[col] = imputer.fit_transform(cleaned_df[[col]])
+                            cleaned_df[col].fillna(cleaned_df[col].mode()[0], inplace=True)
                     else:
-                        cleaned_df[col] = cleaned_df[col].fillna(cleaned_df[col].mode()[0])
+                        cleaned_df[col].fillna(cleaned_df[col].mode()[0], inplace=True)
 
         if options['handle_outliers']:
             numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
@@ -87,13 +84,20 @@ def clean_dataframe(df, options):
                     upper_bound = Q3 + 1.5 * IQR
                     cleaned_df[col] = cleaned_df[col].clip(lower_bound, upper_bound)
                 elif options['outlier_method'] == 'zscore':
-                    z_scores = np.abs(stats.zscore(cleaned_df[col]))
+                    z_scores = np.abs((cleaned_df[col] - cleaned_df[col].mean()) / cleaned_df[col].std())
                     cleaned_df[col] = cleaned_df[col].mask(z_scores > 3, cleaned_df[col].median())
 
         if options['normalize_data']:
-            scaler = MinMaxScaler() if options['scaling_method'] == 'minmax' else StandardScaler()
             numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
-            cleaned_df[numeric_cols] = scaler.fit_transform(cleaned_df[numeric_cols])
+            for col in numeric_cols:
+                if options['scaling_method'] == 'minmax':
+                    min_val = cleaned_df[col].min()
+                    max_val = cleaned_df[col].max()
+                    cleaned_df[col] = (cleaned_df[col] - min_val) / (max_val - min_val)
+                else:  # standard
+                    mean_val = cleaned_df[col].mean()
+                    std_val = cleaned_df[col].std()
+                    cleaned_df[col] = (cleaned_df[col] - mean_val) / std_val
 
         if options['remove_low_variance']:
             variance = cleaned_df.var()
@@ -149,33 +153,36 @@ def show(project_name):
 
     if st.button("Apply Data Cleaning"):
         cleaned_data = clean_dataframe(data, options)
-        st.session_state.projects[project_name]['cleaned_data'] = cleaned_data
-        st.success("Data cleaning applied and saved successfully!")
+        if cleaned_data is not None:
+            st.session_state.projects[project_name]['cleaned_data'] = cleaned_data
+            st.success("Data cleaning applied and saved successfully!")
 
-        st.subheader("Cleaned Data Sample")
-        st.write(cleaned_data.head())
+            st.subheader("Cleaned Data Sample")
+            st.write(cleaned_data.head())
 
-        st.subheader("Cleaning Summary")
-        st.write(f"Original shape: {data.shape}")
-        st.write(f"Cleaned shape: {cleaned_data.shape}")
-        
-        if options['remove_duplicates']:
-            st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
-        
-        if options['handle_missing']:
-            st.write("Missing values handled")
-        
-        if options['handle_outliers']:
-            st.write(f"Outliers handled using {options['outlier_method']} method")
-        
-        if options['normalize_data']:
-            st.write(f"Data normalized using {options['scaling_method']} scaling")
-        
-        if options['remove_low_variance']:
-            st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
-        
-        if options['handle_skewness']:
-            st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
+            st.subheader("Cleaning Summary")
+            st.write(f"Original shape: {data.shape}")
+            st.write(f"Cleaned shape: {cleaned_data.shape}")
+            
+            if options['remove_duplicates']:
+                st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
+            
+            if options['handle_missing']:
+                st.write("Missing values handled")
+            
+            if options['handle_outliers']:
+                st.write(f"Outliers handled using {options['outlier_method']} method")
+            
+            if options['normalize_data']:
+                st.write(f"Data normalized using {options['scaling_method']} scaling")
+            
+            if options['remove_low_variance']:
+                st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
+            
+            if options['handle_skewness']:
+                st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
+        else:
+            st.error("Data cleaning failed. Please check your data and try again.")
 
 if __name__ == "__main__":
     if 'projects' not in st.session_state:
