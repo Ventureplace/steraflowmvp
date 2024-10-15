@@ -42,19 +42,28 @@ elif page == "Clean Data":
         # Data cleaning options
         remove_duplicates = st.checkbox("Remove Duplicate Rows")
         handle_missing = st.checkbox("Handle Missing Values")
+        missing_numeric_method = st.selectbox("Missing Numeric Values Method", ['mean', 'median', 'mode'])
         handle_outliers = st.checkbox("Handle Outliers")
-        normalize_data = st.checkbox("Normalize Data")
-        
+        outlier_method = st.selectbox("Outlier Handling Method", ['IQR', 'zscore'])
+        normalize_data = st.checkbox("Normalize/Scale Data")
+        scaling_method = st.selectbox("Scaling Method", ['minmax', 'standard'])
+        remove_low_variance = st.checkbox("Remove Low Variance Features")
         variance_threshold = st.slider("Variance Threshold", 0.0, 1.0, 0.1, 0.01)
+        handle_skewness = st.checkbox("Handle Skewness")
         skew_threshold = st.slider("Skew Threshold", 0.0, 1.0, 0.5, 0.01)
 
         if st.button("Apply Data Cleaning"):
             options = {
                 'remove_duplicates': remove_duplicates,
                 'handle_missing': handle_missing,
+                'missing_numeric_method': missing_numeric_method,
                 'handle_outliers': handle_outliers,
+                'outlier_method': outlier_method,
                 'normalize_data': normalize_data,
+                'scaling_method': scaling_method,
+                'remove_low_variance': remove_low_variance,
                 'variance_threshold': variance_threshold,
+                'handle_skewness': handle_skewness,
                 'skew_threshold': skew_threshold
             }
             cleaned_data = clean_dataframe(data, options)
