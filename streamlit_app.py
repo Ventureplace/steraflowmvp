@@ -12,7 +12,7 @@ if 'current_project' not in st.session_state:
 # Initialize OpenAI client
 initialize_openai_client()
 
-st.title("🎈 Data Analysis App")
+st.title("For Demo Only")
 
 # Sidebar for navigation
 st.sidebar.title("Navigation")
