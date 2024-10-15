@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 
 def show(project_name):
@@ -51,16 +50,19 @@ def show(project_name):
 
         if len(num_cols) > 1:
             st.subheader("Correlation Heatmap")
-            fig, ax = plt.subplots(figsize=(10, 8))
-            sns.heatmap(data[num_cols].corr(), annot=True, cmap='coolwarm', ax=ax)
-            st.pyplot(fig)
+            fig = px.imshow(data[num_cols].corr(), color_continuous_scale='RdBu_r', zmin=-1, zmax=1)
+            fig.update_layout(title='Correlation Heatmap')
+            st.plotly_chart(fig, use_container_width=True, theme="streamlit")
 
     cat_cols = data.select_dtypes(include=['object', 'category']).columns
     if not cat_cols.empty:
         st.subheader("Categorical Columns Summary")
         for col in cat_cols:
             st.write(f"{col} - Top 5 Categories")
-            st.bar_chart(data[col].value_counts().nlargest(5))
+            top_5 = data[col].value_counts().nlargest(5)
+            fig = px.bar(x=top_5.index, y=top_5.values)
+            fig.update_layout(title=f'Top 5 Categories in {col}', xaxis_title=col, yaxis_title='Count')
+            st.plotly_chart(fig, use_container_width=True, theme="streamlit")
 
     st.subheader("Data Processing Steps")
     steps = []
