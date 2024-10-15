@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from prep import load_config, handle_missing_values, handle_outliers, normalize_data, detect_anomalies, create_correlation_plots, feature_engineering
+from prep import clean_dataframe, initialize_openai_client
 import os
 
 # Initialize session state
@@ -8,6 +8,9 @@ if 'projects' not in st.session_state:
     st.session_state.projects = {}
 if 'current_project' not in st.session_state:
     st.session_state.current_project = "Default Project"
+
+# Initialize OpenAI client
+initialize_openai_client()
 
 st.title("🎈 Data Cleaning App")
 
@@ -32,27 +35,32 @@ if st.session_state.projects[project_name]['data'] is not None:
     st.subheader("Original Data Sample")
     st.write(data.head())
 
-    # Load configuration
-    config = load_config()
-
     # Data cleaning options
     st.subheader("Data Cleaning Options")
 
-    # ... (include all the options from the original show() function)
+    remove_duplicates = st.checkbox("Remove Duplicate Rows")
+    handle_missing = st.checkbox("Handle Missing Values")
+    handle_outliers = st.checkbox("Handle Outliers")
+    normalize_data = st.checkbox("Normalize Data")
+    
+    variance_threshold = st.slider("Variance Threshold", 0.0, 1.0, 0.1, 0.01)
+    skew_threshold = st.slider("Skew Threshold", 0.0, 1.0, 0.5, 0.01)
 
     # Apply cleaning when button is clicked
     if st.button("Apply Data Cleaning"):
-        # ... (include all the cleaning steps from the original show() function)
+        cleaned_data = clean_dataframe(
+            data,
+            remove_duplicates,
+            handle_missing,
+            handle_outliers,
+            normalize_data,
+            variance_threshold,
+            skew_threshold
+        )
 
         # Save cleaned data
-        st.session_state.projects[project_name]['cleaned_data'] = data
+        st.session_state.projects[project_name]['cleaned_data'] = cleaned_data
         st.success("Data cleaning applied and saved successfully!")
-
-        # Generate plots
-        output_dir = 'plots'
-        os.makedirs(output_dir, exist_ok=True)
-        create_correlation_plots(data, output_dir)
-        st.success("Correlation and missing values plots generated.")
 
     # Display cleaned data
     if 'cleaned_data' in st.session_state.projects[project_name]:
