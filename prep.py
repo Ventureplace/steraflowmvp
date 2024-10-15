@@ -49,6 +49,8 @@ def initialize_openai_client():
     else:
         client = None
 
+    return client
+
 def clean_dataframe(df, options):
     if not isinstance(df, pd.DataFrame):
         st.error(f"Input data is not a pandas DataFrame. Type: {type(df)}")
