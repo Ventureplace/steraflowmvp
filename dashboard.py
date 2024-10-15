@@ -8,7 +8,7 @@ from openai import OpenAI
 def get_ai_response(prompt, data):
     client = OpenAI(api_key=st.secrets["openai_api_key"])
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful data analysis assistant."},
             {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser question: {prompt}"}

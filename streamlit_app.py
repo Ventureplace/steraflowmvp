@@ -39,7 +39,7 @@ def get_data_insights(data):
     prompt = f"Given the following dataset description, provide some insights and suggestions for data cleaning:\n\n{data_description}\n\nInsights and suggestions:"
     
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a helpful data analysis assistant."},
             {"role": "user", "content": prompt}
