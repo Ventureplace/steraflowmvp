@@ -6,6 +6,9 @@ import os
 from openai import OpenAI
 import json
 from io import BytesIO
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from scipy import stats
 
 # Add the parent directory to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -48,37 +51,53 @@ def initialize_openai_client():
     else:
         client = None
 
-def clean_dataframe(df, remove_duplicates, handle_missing, handle_outliers, normalize_data, variance_threshold, skew_threshold):
-    if DATAMANCER_AVAILABLE:
-        cleaned_df = smart_clean_extended(
-            df,
-            variance_threshold=variance_threshold,
-            skew_threshold=skew_threshold
-        )
-    else:
-        cleaned_df = df.copy()
-        st.warning("Advanced cleaning functions are not available. Performing basic cleaning only.")
+def clean_dataframe(df, options):
+    cleaned_df = df.copy()
 
-    if remove_duplicates:
+    if options['remove_duplicates']:
         cleaned_df = cleaned_df.drop_duplicates()
 
-    if handle_missing:
+    if options['handle_missing']:
         for col in cleaned_df.columns:
-            if cleaned_df[col].dtype in ['int64', 'float64']:
-                cleaned_df[col] = cleaned_df[col].fillna(cleaned_df[col].median())
-            else:
-                cleaned_df[col] = cleaned_df[col].fillna(cleaned_df[col].mode()[0])
+            if cleaned_df[col].isnull().sum() > 0:
+                if cleaned_df[col].dtype in ['int64', 'float64']:
+                    if options['missing_numeric_method'] == 'mean':
+                        imputer = SimpleImputer(strategy='mean')
+                    elif options['missing_numeric_method'] == 'median':
+                        imputer = SimpleImputer(strategy='median')
+                    else:  # mode
+                        imputer = SimpleImputer(strategy='most_frequent')
+                    cleaned_df[col] = imputer.fit_transform(cleaned_df[[col]])
+                else:
+                    cleaned_df[col] = cleaned_df[col].fillna(cleaned_df[col].mode()[0])
 
-    if handle_outliers:
+    if options['handle_outliers']:
         for col in cleaned_df.select_dtypes(include=[np.number]).columns:
-            Q1 = cleaned_df[col].quantile(0.25)
-            Q3 = cleaned_df[col].quantile(0.75)
-            IQR = Q3 - Q1
-            cleaned_df[col] = cleaned_df[col].clip(Q1 - 1.5*IQR, Q3 + 1.5*IQR)
+            if options['outlier_method'] == 'IQR':
+                Q1 = cleaned_df[col].quantile(0.25)
+                Q3 = cleaned_df[col].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                cleaned_df[col] = cleaned_df[col].clip(lower_bound, upper_bound)
+            elif options['outlier_method'] == 'zscore':
+                z_scores = np.abs(stats.zscore(cleaned_df[col]))
+                cleaned_df[col] = cleaned_df[col].mask(z_scores > 3, cleaned_df[col].median())
 
-    if normalize_data:
-        for col in cleaned_df.select_dtypes(include=[np.number]).columns:
-            cleaned_df[col] = (cleaned_df[col] - cleaned_df[col].min()) / (cleaned_df[col].max() - cleaned_df[col].min())
+    if options['normalize_data']:
+        scaler = MinMaxScaler() if options['scaling_method'] == 'minmax' else StandardScaler()
+        numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
+        cleaned_df[numeric_cols] = scaler.fit_transform(cleaned_df[numeric_cols])
+
+    if options['remove_low_variance']:
+        variance = cleaned_df.var()
+        cleaned_df = cleaned_df.loc[:, variance > options['variance_threshold']]
+
+    if options['handle_skewness']:
+        numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
+        for col in numeric_cols:
+            if abs(stats.skew(cleaned_df[col])) > options['skew_threshold']:
+                cleaned_df[col] = np.log1p(cleaned_df[col] - cleaned_df[col].min() + 1)
 
     return cleaned_df
 
@@ -102,47 +121,51 @@ def show(project_name):
     st.subheader("Original Data Sample")
     st.write(data.head())
 
-    # Data cleaning options
     st.subheader("Data Cleaning Options")
 
-    # Handle missing values
-    if st.checkbox("Handle Missing Values"):
-        for column in data.columns:
-            if data[column].isnull().sum() > 0:
-                method = st.selectbox(f"Handle missing values in {column}", 
-                                      ["Drop", "Fill with mean", "Fill with median", "Fill with mode"])
-                if method == "Drop":
-                    data = data.dropna(subset=[column])
-                elif method == "Fill with mean":
-                    data[column].fillna(data[column].mean(), inplace=True)
-                elif method == "Fill with median":
-                    data[column].fillna(data[column].median(), inplace=True)
-                elif method == "Fill with mode":
-                    data[column].fillna(data[column].mode()[0], inplace=True)
+    options = {
+        'remove_duplicates': st.checkbox("Remove Duplicate Rows"),
+        'handle_missing': st.checkbox("Handle Missing Values"),
+        'missing_numeric_method': st.selectbox("Missing Numeric Values Method", ['mean', 'median', 'mode']),
+        'handle_outliers': st.checkbox("Handle Outliers"),
+        'outlier_method': st.selectbox("Outlier Handling Method", ['IQR', 'zscore']),
+        'normalize_data': st.checkbox("Normalize/Scale Data"),
+        'scaling_method': st.selectbox("Scaling Method", ['minmax', 'standard']),
+        'remove_low_variance': st.checkbox("Remove Low Variance Features"),
+        'variance_threshold': st.slider("Variance Threshold", 0.0, 1.0, 0.1, 0.01),
+        'handle_skewness': st.checkbox("Handle Skewness"),
+        'skew_threshold': st.slider("Skewness Threshold", 0.0, 1.0, 0.5, 0.01)
+    }
 
-    # Remove duplicates
-    if st.checkbox("Remove Duplicate Rows"):
-        data = data.drop_duplicates()
+    if st.button("Apply Data Cleaning"):
+        cleaned_data = clean_dataframe(data, options)
+        st.session_state.projects[project_name]['cleaned_data'] = cleaned_data
+        st.success("Data cleaning applied and saved successfully!")
 
-    # Handle outliers
-    if st.checkbox("Handle Outliers"):
-        numeric_columns = data.select_dtypes(include=[np.number]).columns
-        for column in numeric_columns:
-            if st.checkbox(f"Handle outliers in {column}"):
-                Q1 = data[column].quantile(0.25)
-                Q3 = data[column].quantile(0.75)
-                IQR = Q3 - Q1
-                lower_bound = Q1 - 1.5 * IQR
-                upper_bound = Q3 + 1.5 * IQR
-                data[column] = data[column].clip(lower_bound, upper_bound)
+        st.subheader("Cleaned Data Sample")
+        st.write(cleaned_data.head())
 
-    # Save cleaned data
-    if st.button("Save Cleaned Data"):
-        st.session_state.projects[project_name]['cleaned_data'] = data
-        st.success("Cleaned data saved successfully!")
-
-    st.subheader("Cleaned Data Sample")
-    st.write(data.head())
+        st.subheader("Cleaning Summary")
+        st.write(f"Original shape: {data.shape}")
+        st.write(f"Cleaned shape: {cleaned_data.shape}")
+        
+        if options['remove_duplicates']:
+            st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
+        
+        if options['handle_missing']:
+            st.write("Missing values handled")
+        
+        if options['handle_outliers']:
+            st.write(f"Outliers handled using {options['outlier_method']} method")
+        
+        if options['normalize_data']:
+            st.write(f"Data normalized using {options['scaling_method']} scaling")
+        
+        if options['remove_low_variance']:
+            st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
+        
+        if options['handle_skewness']:
+            st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
 
 if __name__ == "__main__":
     if 'projects' not in st.session_state:
