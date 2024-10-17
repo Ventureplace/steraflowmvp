@@ -4,6 +4,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from openai import OpenAI
+import utils
+
+# Initialize session
+utils.init()
 
 def get_ai_response(prompt, data):
     client = OpenAI(api_key=st.secrets["openai_api_key"])
@@ -28,7 +32,7 @@ def modify_data_with_ai(prompt, data):
     return response.choices[0].message.content
 
 def show(project_name):
-    st.title(f"Dashboard Summary for Project: {project_name}")
+    st.header(f"Dashboard Summary for Project: {project_name}")
 
     if project_name not in st.session_state.projects:
         st.warning(f"Project '{project_name}' not found.")
@@ -127,19 +131,6 @@ def show(project_name):
         mime="text/csv",
     )
 
+
 if __name__ == "__main__":
-    # This block is useful for testing the dashboard independently
-    if 'projects' not in st.session_state:
-        st.session_state.projects = {}
-    if 'current_project' not in st.session_state:
-        st.session_state.current_project = "Default Project"
-    
-    # Create some dummy data for testing
-    dummy_data = pd.DataFrame({
-        'A': np.random.rand(100),
-        'B': np.random.rand(100),
-        'C': np.random.choice(['X', 'Y', 'Z'], 100)
-    })
-    st.session_state.projects["Default Project"] = {'cleaned_data': dummy_data}
-    
     show(st.session_state.current_project)
