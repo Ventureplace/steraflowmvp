@@ -4,6 +4,24 @@ import dashboard
 import pandas as pd
 import plotly.express as px
 from openai import OpenAI
+from streamlit_gsheets import GSheetsConnection
+
+data_sources = {'CSV': {'icon': ':material/mood:'}, 
+                'Public Google Sheets': {'icon': ':material/mood:'},
+                # 'Private Google Sheets': {'icon': ':material/mood:'},
+                'AWS S3': {'icon': ':material/mood:'},
+                'Firestore': {'icon': ':material/mood:'},
+                'Google Cloud Storage': {'icon': ':material/mood:'},
+                # 'Microsoft SQL Server': {'icon': ':material/mood:'},
+                # 'MongoDB': {'icon': ':material/mood:'},
+                # 'MySQL': {'icon': ':material/mood:'},
+                # 'Neon': {'icon': ':material/mood:'},
+                # 'PostgreSQL': {'icon': ':material/mood:'},
+                # 'Snowflake': {'icon': ':material/mood:'},
+                # 'Supabase': {'icon': ':material/mood:'},
+                # 'Tableau': {'icon': ':material/mood:'},
+                # 'TiDB': {'icon': ':material/mood:'},
+                'TigerGraph': {'icon': ':material/mood:'}}
 
 # Initialize session state
 if 'projects' not in st.session_state:
@@ -12,6 +30,11 @@ if 'current_project' not in st.session_state:
     st.session_state.current_project = "Default Project"
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
+if 'src' not in st.session_state:
+    st.session_state.src = next(iter(data_sources))
+
+def on_src_change(src):
+    st.session_state.src = src
 
 # Initialize OpenAI client
 client = initialize_openai_client()
@@ -50,9 +73,42 @@ def get_data_insights(data):
 
 if page == "Upload Data":
     st.header("Upload Data")
-    uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-    if uploaded_file is not None:
-        data = pd.read_csv(uploaded_file)
+    
+    # Add a grid of buttons for each data source
+    st.write("Select a Source")
+    NUM_COLS = 3
+    curr_col = 0
+    cols = st.columns(NUM_COLS)
+    for src in data_sources:
+        data_sources[src]['btn'] = cols[curr_col].button(src, key=src, on_click=on_src_change, args=[src], icon=data_sources[src]['icon'], use_container_width=True)
+        curr_col = (curr_col + 1) % NUM_COLS
+    st.divider()
+
+    # Get data from user specified source
+    data = None
+    if st.session_state.src == 'CSV':
+        uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+        if uploaded_file is not None:
+            data = pd.read_csv(uploaded_file)
+    elif st.session_state.src == 'Public Google Sheets':
+        st.write("Create a Google Sheets share link with the data you would like to upload. The link should have \"Anyone with the link\" set as a \"Viewer.\"")
+        sheet_url = st.text_input("Sheet URL*")
+        sheet_name = st.text_input("Sheet Name*")
+        if st.button('Upload'):
+            if sheet_url and sheet_name:
+                try:
+                    # Create a connection object and read spreadsheet
+                    conn = st.connection("gsheets", type=GSheetsConnection)
+                    data = conn.read(spreadsheet=sheet_url) #, worksheet=sheet_name)    # fix worksheet specification
+                except Exception as e:
+                    st.error(f"Error reading sheet: {str(e)}")
+            else:
+                st.write('Please fill all requred fields (*)')
+    else:
+        st.write(f"Source not yet supported: {st.session_state.src}")
+
+    # Store and display the retrieved data
+    if data is not None:
         st.session_state.projects[project_name]['data'] = data
         st.write("Data uploaded successfully!")
         
