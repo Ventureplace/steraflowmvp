@@ -7,11 +7,15 @@ from openai import OpenAI
 import json
 from io import BytesIO
 from scipy import stats
+import utils
 
 # Add the parent directory to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.append(parent_dir)
+
+# Initialize session
+utils.init()
 
 try:
     from datamancer.cleaner import smart_clean_extended
@@ -23,18 +27,7 @@ except ImportError as e:
     DATAMANCER_AVAILABLE = False
 
 # Initialize OpenAI client
-client = None
-
-def initialize_openai_client():
-    global client
-    api_key = st.text_input("Enter your OpenAI API key:", type="password")
-    if api_key:
-        client = OpenAI(api_key=api_key)
-        st.success("API key entered successfully!")
-    else:
-        client = None
-        st.error("Please enter a valid OpenAI API key to use the AI-powered features.")
-    return client
+client = st.session_state.client
 
 def clean_dataframe(df, options):
     if not isinstance(df, pd.DataFrame):
@@ -137,7 +130,7 @@ def modify_data_with_ai(prompt, data):
     return response.choices[0].message.content
 
 def show(project_name):
-    st.title(f"Data Cleaning for Project: {project_name}")
+    st.header(f"Data Cleaning for Project: {project_name}")
 
     if project_name not in st.session_state.projects:
         st.warning(f"Project '{project_name}' not found.")
@@ -243,9 +236,6 @@ def show(project_name):
             except Exception as e:
                 st.error(f"Error modifying data: {str(e)}")
 
+
 if __name__ == "__main__":
-    if 'projects' not in st.session_state:
-        st.session_state.projects = {}
-    if 'current_project' not in st.session_state:
-        st.session_state.current_project = "Default Project"
     show(st.session_state.current_project)
