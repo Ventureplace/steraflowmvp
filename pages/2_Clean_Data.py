@@ -140,6 +140,10 @@ def show(project_name):
         st.warning("No data available. Please upload data first.")
         return
 
+    # Initialize cleaned_data_sources if it doesn't exist
+    if 'cleaned_data_sources' not in st.session_state.projects[project_name]:
+        st.session_state.projects[project_name]['cleaned_data_sources'] = {}
+
     # Create tabs for each data source
     data_sources = st.session_state.projects[project_name]['data_sources']
     tabs = st.tabs(list(data_sources.keys()))
@@ -151,6 +155,7 @@ def show(project_name):
                 st.error(f"The data from {source} is not in the correct format. Please upload a valid dataset.")
                 continue
 
+            # Display original and editable data
             if source == 'CSV':
                 col1, col2 = st.columns(2)
                 with col1:
@@ -192,8 +197,6 @@ def show(project_name):
             if st.button("Apply Data Cleaning", key=f"{source}_apply_cleaning"):
                 cleaned_data = clean_dataframe(data, options)
                 if cleaned_data is not None:
-                    if 'cleaned_data_sources' not in st.session_state.projects[project_name]:
-                        st.session_state.projects[project_name]['cleaned_data_sources'] = {}
                     st.session_state.projects[project_name]['cleaned_data_sources'][source] = cleaned_data
                     st.success(f"Data cleaning for {source} applied and saved successfully!")
 
@@ -232,6 +235,21 @@ def show(project_name):
                         st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
                 else:
                     st.error(f"Data cleaning for {source} failed. Please check your data and try again.")
+
+            # Display cleaned data if it exists
+            if source in st.session_state.projects[project_name]['cleaned_data_sources']:
+                st.subheader("Previously Cleaned Data")
+                st.dataframe(st.session_state.projects[project_name]['cleaned_data_sources'][source])
+
+                if st.button("Edit Previously Cleaned Data", key=f"{source}_edit_cleaned"):
+                    edited_cleaned_data = st.data_editor(
+                        st.session_state.projects[project_name]['cleaned_data_sources'][source],
+                        num_rows="dynamic",
+                        key=f"editor_{project_name}_{source}_cleaned_edit"
+                    )
+                    if not edited_cleaned_data.equals(st.session_state.projects[project_name]['cleaned_data_sources'][source]):
+                        st.session_state.projects[project_name]['cleaned_data_sources'][source] = edited_cleaned_data
+                        st.success(f"Cleaned data for {source} updated successfully!")
 
             st.subheader("AI Cleaning Suggestions")
             if st.button("Get AI Cleaning Suggestions", key=f"{source}_ai_suggestions"):
