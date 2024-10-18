@@ -203,15 +203,6 @@ def show(project_name):
                     st.subheader("Cleaned Data")
                     st.dataframe(cleaned_data)
 
-                    st.subheader("Edit Cleaned Data")
-                    final_cleaned_data = st.data_editor(cleaned_data, num_rows="dynamic", key=f"editor_{project_name}_{source}_cleaned")
-
-                    if not final_cleaned_data.equals(cleaned_data):
-                        st.session_state.projects[project_name]['cleaned_data_sources'][source] = final_cleaned_data
-                        st.success(f"Cleaned data for {source} updated successfully!")
-
-                    cleaned_data = final_cleaned_data  # Use the final edited cleaned data
-
                     st.subheader("Cleaning Summary")
                     st.write(f"Original shape: {data.shape}")
                     st.write(f"Cleaned shape: {cleaned_data.shape}")
