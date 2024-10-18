@@ -79,12 +79,11 @@ def create_charts(data, source_name):
         st.subheader(f"Scatter Plot with Regression for {source_name}")
         x_col = st.selectbox("Select X-axis", num_cols, key=f"{source_name}_scatter_x")
         y_col = st.selectbox("Select Y-axis", num_cols, key=f"{source_name}_scatter_y")
-        regression_type = st.selectbox("Select Regression Type", ["Linear", "Polynomial", "Exponential"], key=f"{source_name}_regression_type")
         
-        fig = px.scatter(data, x=x_col, y=y_col, trendline=regression_type.lower())
-        fig.update_layout(title=f'{regression_type} Regression: {y_col} vs {x_col} - {source_name}')
+        fig = px.scatter(data, x=x_col, y=y_col, trendline="ols")
+        fig.update_layout(title=f'Linear Regression: {y_col} vs {x_col} - {source_name}')
         st.plotly_chart(fig, use_container_width=True, theme="streamlit")
-        charts.append(f"{regression_type} Regression: {y_col} vs {x_col} - {source_name}")
+        charts.append(f"Linear Regression: {y_col} vs {x_col} - {source_name}")
 
         # Distribution plot
         st.subheader(f"Distribution Plot for {source_name}")
@@ -168,8 +167,8 @@ def show(project_name):
             if not isinstance(data, pd.DataFrame):
                 try:
                     data = pd.DataFrame(data)
-                except:
-                    st.error(f"Unable to process the data for {source}. Please ensure the data is in the correct format.")
+                except Exception as e:
+                    st.error(f"Unable to process the data for {source}. Error: {str(e)}")
                     continue
 
             col1, col2 = st.columns(2)
@@ -181,7 +180,7 @@ def show(project_name):
 
             st.subheader("Column Information")
             col_info = pd.DataFrame({
-                'Type': data.dtypes,
+                'Type': data.dtypes.astype(str),
                 'Non-Null Count': data.notnull().sum(),
                 'Null Count': data.isnull().sum(),
                 'Unique Values': data.nunique()
@@ -291,3 +290,4 @@ def show(project_name):
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
+
