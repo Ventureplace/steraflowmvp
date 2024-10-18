@@ -5,7 +5,6 @@ from openai import OpenAI
 # Initialize session
 utils.init()
 
-@st.cache_resource
 def get_openai_client():
     if "openai_api_key" in st.session_state and st.session_state.openai_api_key:
         return OpenAI(api_key=st.session_state.openai_api_key)
