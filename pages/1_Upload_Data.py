@@ -10,6 +10,7 @@ utils.init()
 def on_src_change(src):
     st.session_state.src = src
 
+@st.cache_data
 def get_csv_data():
     data = None
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
@@ -22,6 +23,7 @@ def get_csv_data():
         st.session_state.csv_files = st.session_state.csv_files[-5:]  # Keep only the last 5 files
     return data
 
+@st.cache_data(ttl=3600)  # Cache expires after 1 hour
 def get_pub_sheets_data():
     data = None
     st.write("Create a Google Sheets share link with the data you would like to upload. The link should have \"Anyone with the link\" set as a \"Viewer.\"")
@@ -44,6 +46,7 @@ def get_pub_sheets_data():
             st.write('Please fill all required fields (*)')
     return data
 
+@st.cache_data
 def show(project_name):
     st.header(f"Upload Data for Project: {project_name}")
 
