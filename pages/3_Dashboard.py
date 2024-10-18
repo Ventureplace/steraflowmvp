@@ -31,25 +31,49 @@ def get_ai_response(prompt, data, charts, tab_name):
 
         tab_context = f"Current tab: {tab_name}\n\n"
         
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": system_content},
-                {"role": "user", "content": f"{tab_context}Given the following data:\n\n{context}\n\nUser question: {prompt}"}
-            ]
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
-
-def modify_data_with_ai(prompt, data):
-    client = get_openai_client()
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a helpful data modification assistant. Provide Python code to modify the data based on the user's request."},
-            {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser request: {prompt}\n\nProvide Python code to modify the data:"}
-        ]
+            # Start of Selection
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_content
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"{tab_context}"
+                            f"Given the following data:\n\n{context}\n\n"
+                            f"Please provide clear and definitive answers along with specific suggestions.\n\n"
+                            f"User question: {prompt}"
+                        )
+                    }
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"An error occurred: {str(e)}"
+        
+        def modify_data_with_ai(prompt, data):
+            client = get_openai_client()
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert data modification assistant. Provide precise and actionable Python code to modify the data based on the user's request with specific instructions."
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Given the following data:\n\n{data.to_string()}\n\n"
+                            f"User request: {prompt}\n\n"
+                            f"Please provide Python code to modify the data accordingly with specific suggestions:"
+                        )
+                    }
+                ]
+            )
+            return response.choices[0].message.content
     )
     return response.choices[0].message.content
 
@@ -152,10 +176,51 @@ def create_charts(data, source_name):
     return charts
 
 def harmonize_data(data_sources):
-    # This is a simple example of data harmonization
-    # You may need to implement more sophisticated harmonization based on your specific data
-    harmonized_data = pd.concat(data_sources.values(), axis=1)
-    return harmonized_data
+    harmonized_data = {}
+    
+    # Add this at the beginning of the harmonize_data function
+    print("Data sources:", data_sources.keys())
+    for source, data in data_sources.items():
+        print(f"Source: {source}")
+        print(f"Data type: {type(data)}")
+        if isinstance(data, pd.DataFrame):
+            print(f"Columns: {data.columns}")
+            print(f"Data types: {data.dtypes}")
+        print("---")
+    
+    for source, data in data_sources.items():
+        if not isinstance(data, pd.DataFrame):
+            try:
+                data = pd.DataFrame(data)
+            except Exception as e:
+                print(f"Error converting data from {source} to DataFrame: {str(e)}")
+                continue
+        
+        for column in data.columns:
+            new_column_name = f"{source}_{column}"
+            
+            # Handle different data types
+            if pd.api.types.is_numeric_dtype(data[column]):
+                harmonized_data[new_column_name] = data[column].astype(float)
+            elif pd.api.types.is_datetime64_any_dtype(data[column]):
+                harmonized_data[new_column_name] = data[column].astype(str)
+            elif pd.api.types.is_bool_dtype(data[column]):
+                harmonized_data[new_column_name] = data[column].astype(str)
+            else:
+                harmonized_data[new_column_name] = data[column].astype(str)
+    
+    # Create a new DataFrame from the harmonized data
+    harmonized_df = pd.DataFrame(harmonized_data)
+    
+    # Fill NaN values with a placeholder
+    harmonized_df = harmonized_df.fillna("N/A")
+    
+    # Add this just before returning the harmonized_df
+    print("Harmonized data shape:", harmonized_df.shape)
+    print("Harmonized data columns:", harmonized_df.columns)
+    print("Harmonized data types:", harmonized_df.dtypes)
+    
+    return harmonized_df
 
 def generate_data_report(data, charts):
     buffer = io.StringIO()
@@ -314,67 +379,78 @@ def show(project_name):
                         st.session_state.messages[source].append({"role": "assistant", "content": full_response})
 
     # Harmonized Data tab
-    with tabs[-2]:  # Change this from [-1] to [-2]
+    with tabs[-2]:
         st.subheader("Harmonized Data")
-        harmonized_data = harmonize_data(data_sources)
-        
-        col1, col2 = st.columns(2)
-        col1.metric("Rows", harmonized_data.shape[0])
-        col2.metric("Columns", harmonized_data.shape[1])
+        try:
+            harmonized_data = harmonize_data(data_sources)
+            
+            col1, col2 = st.columns(2)
+            col1.metric("Rows", harmonized_data.shape[0])
+            col2.metric("Columns", harmonized_data.shape[1])
 
-        st.subheader("Harmonized Data Sample")
-        st.dataframe(harmonized_data.head())
+            st.subheader("Harmonized Data Sample")
+            
+            # Check if harmonized_data is empty
+            if harmonized_data.empty:
+                st.warning("The harmonized data is empty. Please check your data sources.")
+            else:
+                # Display the harmonized data
+                st.dataframe(harmonized_data.head())
 
-        # Create charts for harmonized data
-        harmonized_charts = create_charts(harmonized_data, "Harmonized Data")
-        all_charts.extend(harmonized_charts)
+            # Create charts for harmonized data
+            harmonized_charts = create_charts(harmonized_data, "Harmonized Data")
+            all_charts.extend(harmonized_charts)
 
-        # Download harmonized data as CSV
-        csv = harmonized_data.to_csv(index=False)
-        st.download_button(
-            label="Download Harmonized Data as CSV",
-            data=csv,
-            file_name=f"{project_name}_harmonized_data.csv",
-            mime="text/csv",
-        )
+            # Download harmonized data as CSV
+            csv = harmonized_data.to_csv(index=False)
+            st.download_button(
+                label="Download Harmonized Data as CSV",
+                data=csv,
+                file_name=f"{project_name}_harmonized_data.csv",
+                mime="text/csv",
+            )
 
-        # Download harmonized data report
-        report = generate_data_report(harmonized_data, harmonized_charts)
-        st.download_button(
-            label="Download Harmonized Data Report",
-            data=report,
-            file_name=f"{project_name}_harmonized_data_report.txt",
-            mime="text/plain",
-        )
+            # Download harmonized data report
+            report = generate_data_report(harmonized_data, harmonized_charts)
+            st.download_button(
+                label="Download Harmonized Data Report",
+                data=report,
+                file_name=f"{project_name}_harmonized_data_report.txt",
+                mime="text/plain",
+            )
 
-        # Add chat button for harmonized data
-        chat_button = st.button("💬 Chat with Harmonized Data", key="chat_button_harmonized")
+            # Add chat button for harmonized data
+            chat_button = st.button("💬 Chat with Harmonized Data", key="chat_button_harmonized")
 
-        if chat_button:
-            if "Harmonized Data" not in st.session_state.chat_open:
-                st.session_state.chat_open["Harmonized Data"] = False
-            st.session_state.chat_open["Harmonized Data"] = not st.session_state.chat_open["Harmonized Data"]
+            if chat_button:
+                if "Harmonized Data" not in st.session_state.chat_open:
+                    st.session_state.chat_open["Harmonized Data"] = False
+                st.session_state.chat_open["Harmonized Data"] = not st.session_state.chat_open["Harmonized Data"]
 
-        # Chat interface for harmonized data
-        if "Harmonized Data" in st.session_state.chat_open and st.session_state.chat_open["Harmonized Data"]:
-            chat_container = st.container()
-            with chat_container:
-                # Display chat messages
-                for message in st.session_state.messages["Harmonized Data"]:
-                    with st.chat_message(message["role"]):
-                        st.markdown(message["content"])
+            # Chat interface for harmonized data
+            if "Harmonized Data" in st.session_state.chat_open and st.session_state.chat_open["Harmonized Data"]:
+                chat_container = st.container()
+                with chat_container:
+                    # Display chat messages
+                    for message in st.session_state.messages["Harmonized Data"]:
+                        with st.chat_message(message["role"]):
+                            st.markdown(message["content"])
 
-                # Chat input
-                if prompt := st.chat_input("Ask about harmonized data...", key="chat_input_harmonized"):
-                    st.session_state.messages["Harmonized Data"].append({"role": "user", "content": prompt})
-                    with st.chat_message("user"):
-                        st.markdown(prompt)
+                    # Chat input
+                    if prompt := st.chat_input("Ask about harmonized data...", key="chat_input_harmonized"):
+                        st.session_state.messages["Harmonized Data"].append({"role": "user", "content": prompt})
+                        with st.chat_message("user"):
+                            st.markdown(prompt)
 
-                    with st.chat_message("assistant"):
-                        message_placeholder = st.empty()
-                        full_response = get_ai_response(prompt, harmonized_data, harmonized_charts, "Harmonized Data")
-                        message_placeholder.markdown(full_response)
-                    st.session_state.messages["Harmonized Data"].append({"role": "assistant", "content": full_response})
+                        with st.chat_message("assistant"):
+                            message_placeholder = st.empty()
+                            full_response = get_ai_response(prompt, harmonized_data, harmonized_charts, "Harmonized Data")
+                            message_placeholder.markdown(full_response)
+                        st.session_state.messages["Harmonized Data"].append({"role": "assistant", "content": full_response})
+
+        except Exception as e:
+            st.error(f"An error occurred while processing the harmonized data: {str(e)}")
+            st.error("Please check your data sources and ensure they are compatible for harmonization.")
 
     # Export Data tab
     with tabs[-1]:  # This will now correctly refer to the last tab
