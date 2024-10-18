@@ -210,32 +210,44 @@ def show(project_name):
                     st.subheader("Cleaned Data")
                     st.dataframe(cleaned_data)
 
-                    st.subheader("Cleaning Summary")
-                    st.write(f"Original shape: {data.shape}")
-                    st.write(f"Cleaned shape: {cleaned_data.shape}")
-                    
-                    if options['remove_duplicates']:
-                        st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
-                    
-                    if options['handle_missing']:
-                        st.write("Missing values handled")
-                    
-                    if options['handle_outliers']:
-                        st.write(f"Outliers handled using {options['outlier_method']} method")
-                    
-                    if options['normalize_data']:
-                        st.write(f"Data normalized using {options['scaling_method']} scaling")
-                    
-                    if options['remove_low_variance']:
-                        st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
-                    
-                    if options['handle_skewness']:
-                        st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
+                    # Create two columns for summary and download button
+                    col1, col2 = st.columns([2, 1])
 
-                    # Generate and display download link for data report
-                    st.markdown("### Download Data Report")
-                    download_link = generate_download_link(cleaned_data, f"{source}_cleaned_data_report.csv")
-                    st.markdown(download_link, unsafe_allow_html=True)
+                    with col1:
+                        st.subheader("Cleaning Summary")
+                        st.write(f"Original shape: {data.shape}")
+                        st.write(f"Cleaned shape: {cleaned_data.shape}")
+                        
+                        if options['remove_duplicates']:
+                            st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
+                        
+                        if options['handle_missing']:
+                            st.write("Missing values handled")
+                        
+                        if options['handle_outliers']:
+                            st.write(f"Outliers handled using {options['outlier_method']} method")
+                        
+                        if options['normalize_data']:
+                            st.write(f"Data normalized using {options['scaling_method']} scaling")
+                        
+                        if options['remove_low_variance']:
+                            st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
+                        
+                        if options['handle_skewness']:
+                            st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
+
+                    with col2:
+                        st.subheader("Download Report")
+                        csv = cleaned_data.to_csv(index=False)
+                        b64 = base64.b64encode(csv.encode()).decode()
+                        href = f'data:file/csv;base64,{b64}'
+                        st.download_button(
+                            label="Download Data Report",
+                            data=csv,
+                            file_name=f"{source}_cleaned_data_report.csv",
+                            mime="text/csv",
+                            key=f"{source}_download_report"
+                        )
 
                 else:
                     st.error(f"Data cleaning for {source} failed. Please check your data and try again.")
