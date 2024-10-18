@@ -357,14 +357,14 @@ def get_ai_response(prompt, project_name):
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a highly skilled data scientist and supply chain expert with expertise in advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques tailored for supply chain operations. Provide clear, concise, specific, and definite answers to enhance supply chain efficiency, reliability, and decision-making processes."
-                },
-                {
-                    "role": "user",
-                    "content": f"Context:\n{context}\n\nUser question: {prompt}"
-                }
+{
+    "role": "system",
+    "content": "You are an expert data scientist and supply chain analyst with specialized knowledge in advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques specifically for supply chain operations. Your responses should provide actionable, detailed, and specific recommendations to improve supply chain efficiency, reliability, and decision-making. Ensure all advice is supported by statistical reasoning and directly applicable to the provided data context."
+},
+{
+    "role": "user",
+    "content": f"Context:\n{context}\n\nUser question: {prompt}\n\nPlease provide detailed and specific guidance, including step-by-step recommendations and justifications based on the data context."
+}
             ]
         )
         return response.choices[0].message.content
