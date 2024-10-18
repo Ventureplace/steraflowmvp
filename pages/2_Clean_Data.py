@@ -151,11 +151,21 @@ def show(project_name):
                 st.error(f"The data from {source} is not in the correct format. Please upload a valid dataset.")
                 continue
 
-            st.subheader("Original Data")
-            st.dataframe(data)
+            if source == 'CSV':
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("Original Data")
+                    st.dataframe(data, height=400)
 
-            st.subheader("Edit Data")
-            edited_data = st.data_editor(data, num_rows="dynamic", key=f"editor_{project_name}_{source}_original")
+                with col2:
+                    st.subheader("Edit Data")
+                    edited_data = st.data_editor(data, num_rows="dynamic", key=f"editor_{project_name}_{source}_original", height=400)
+            else:
+                st.subheader("Original Data")
+                st.dataframe(data)
+
+                st.subheader("Edit Data")
+                edited_data = st.data_editor(data, num_rows="dynamic", key=f"editor_{project_name}_{source}_original")
 
             if not edited_data.equals(data):
                 st.session_state.projects[project_name]['data_sources'][source] = edited_data
