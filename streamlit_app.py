@@ -18,16 +18,16 @@ def run():
     utils.select_project(st.text_input("Project Name", value=st.session_state.current_project))
 
     # OpenAI API key input
-    api_key = st.text_input("Enter your OpenAI API key", type="password", key="openai_api_key")
+    api_key = st.text_input("Enter your OpenAI API key", type="password", key="api_key_input")
     
     if api_key:
-        st.session_state.openai_api_key = api_key
+        st.session_state["openai_api_key"] = api_key
         st.success("API key set successfully!")
 
     # Initialize OpenAI client
     client = get_openai_client()
     if client:
-        st.session_state.client = client
+        st.session_state["client"] = client
         st.success("OpenAI client initialized successfully!")
     else:
         st.warning("Please enter a valid OpenAI API key to initialize the client.")
