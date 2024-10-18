@@ -31,49 +31,47 @@ def get_ai_response(prompt, data, charts, tab_name):
 
         tab_context = f"Current tab: {tab_name}\n\n"
         
-            # Start of Selection
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_content
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            f"{tab_context}"
-                            f"Given the following data:\n\n{context}\n\n"
-                            f"Please provide clear and definitive answers along with specific suggestions.\n\n"
-                            f"User question: {prompt}"
-                        )
-                    }
-                ]
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"An error occurred: {str(e)}"
-        
-        def modify_data_with_ai(prompt, data):
-            client = get_openai_client()
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert data modification assistant. Provide precise and actionable Python code to modify the data based on the user's request with specific instructions."
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Given the following data:\n\n{data.to_string()}\n\n"
-                            f"User request: {prompt}\n\n"
-                            f"Please provide Python code to modify the data accordingly with specific suggestions:"
-                        )
-                    }
-                ]
-            )
-            return response.choices[0].message.content
+        # Start of Selection
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"{tab_context}"
+                        f"Given the following data:\n\n{context}\n\n"
+                        f"Please provide clear and definitive answers along with specific suggestions.\n\n"
+                        f"User question: {prompt}"
+                    )
+                }
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
+
+def modify_data_with_ai(prompt, data):
+    client = get_openai_client()
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert data modification assistant. Provide precise and actionable Python code to modify the data based on the user's request with specific instructions."
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Given the following data:\n\n{data.to_string()}\n\n"
+                    f"User request: {prompt}\n\n"
+                    f"Please provide Python code to modify the data accordingly with specific suggestions:"
+                )
+            }
+        ]
     )
     return response.choices[0].message.content
 
@@ -558,3 +556,4 @@ def show(project_name):
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
+
