@@ -324,28 +324,84 @@ def show(project_name):
     chat_container = st.container()
 
     # Floating chat bar
-    with st.expander("Chat with AI", expanded=st.session_state.chat_open):
-        st.subheader("Chat with AI")
+    chat_container.markdown(
+        """
+        <style>
+        .floating-chat {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    chat_content = ""
+    if st.session_state.chat_open:
+        chat_content += "<div class='floating-chat'>"
+        chat_content += "<h3>Chat with AI</h3>"
         
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+            chat_content += f"<p><strong>{message['role']}:</strong> {message['content']}</p>"
 
-        if prompt := st.chat_input("What would you like to know?"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+        chat_content += """
+        <input type='text' id='chat-input' placeholder='Type your message...' style='width: 100%;'>
+        <button onclick='send_message()'>Send</button>
+        <script>
+        function send_message() {
+            var input = document.getElementById('chat-input');
+            var message = input.value;
+            if (message) {
+                window.parent.postMessage({type: 'chat_input', message: message}, '*');
+                input.value = '';
+            }
+        }
+        </script>
+        """
+        chat_content += "</div>"
 
-            with st.chat_message("assistant"):
-                message_placeholder = st.empty()
-                full_response = get_ai_response(prompt)
-                message_placeholder.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+    chat_container.markdown(chat_content, unsafe_allow_html=True)
+
+    # Handle chat input
+    if 'chat_input' not in st.session_state:
+        st.session_state.chat_input = ''
+
+    if st.session_state.chat_input:
+        prompt = st.session_state.chat_input
+        st.session_state.chat_input = ''
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        response = get_ai_response(prompt)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        st.experimental_rerun()
 
     # Toggle chat open/close when the button is clicked
     if chat_button:
         st.session_state.chat_open = not st.session_state.chat_open
         st.experimental_rerun()
+
+    # JavaScript to handle the chat input
+    st.markdown("""
+    <script>
+    window.addEventListener('message', function(e) {
+        if (e.data.type === 'chat_input') {
+            window.parent.postMessage({
+                type: 'streamlit:set_widget_value',
+                key: 'chat_input',
+                value: e.data.message
+            }, '*');
+        }
+    });
+    </script>
+    """, unsafe_allow_html=True)
 
 def get_ai_response(prompt):
     client = OpenAI(api_key=st.secrets["openai_api_key"])
