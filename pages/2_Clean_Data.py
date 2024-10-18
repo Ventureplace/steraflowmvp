@@ -237,7 +237,6 @@ def show(project_name):
                             st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
 
                     with col2:
-                        st.subheader("Download Report")
                         csv = cleaned_data.to_csv(index=False)
                         b64 = base64.b64encode(csv.encode()).decode()
                         href = f'data:file/csv;base64,{b64}'
