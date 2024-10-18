@@ -313,7 +313,7 @@ def show(project_name):
         st.session_state.messages = []
 
     # Floating chat button (with a unique key)
-    chat_button = st.button("💬 Chat with AI", key="floating_chat_button")
+    chat_button = st.button("💬 Chat with Your Data", key="floating_chat_button")
 
     if chat_button:
         st.session_state.chat_open = not st.session_state.chat_open
@@ -346,10 +346,12 @@ def get_ai_response(prompt):
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant for data cleaning and analysis."},
-                {"role": "user", "content": prompt}
-            ]
+                # Start of Selection
+                    # Start of Selection
+                    messages=[
+                        {"role": "system", "content": "You are a highly skilled data scientist and supply chain expert. Your expertise includes advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques specifically tailored for supply chain operations. You provide deep insights and efficient solutions to enhance supply chain efficiency, reliability, and decision-making processes."},
+                        {"role": "user", "content": prompt}
+                    ]
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -357,3 +359,4 @@ def get_ai_response(prompt):
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
+
