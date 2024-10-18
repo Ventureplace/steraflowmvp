@@ -15,10 +15,10 @@ def get_csv_data():
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     if uploaded_file is not None:
         data = pd.read_csv(uploaded_file)
-        # Save the file name in session state
+        # Save the file name and data in session state
         if 'recent_files' not in st.session_state:
             st.session_state.recent_files = []
-        st.session_state.recent_files.append(uploaded_file.name)
+        st.session_state.recent_files.append((uploaded_file.name, data))
         st.session_state.recent_files = st.session_state.recent_files[-5:]  # Keep only the last 5 files
     return data
 
@@ -83,18 +83,18 @@ def show(project_name):
     with col2:
         st.subheader("Recent Files")
         if 'recent_files' in st.session_state and st.session_state.recent_files:
-            selected_file = st.selectbox("Select a recent file", st.session_state.recent_files)
+            file_names = [file[0] for file in st.session_state.recent_files]
+            selected_file = st.selectbox("Select a recent file", file_names)
             if st.button("Load Selected File"):
-                try:
-                    loaded_data = pd.read_csv(selected_file)
-                    st.session_state.projects[project_name]['data'] = loaded_data
-                    st.success(f"Loaded data from {selected_file}")
-                    # Refresh the current data display
-                    with col1:
-                        st.subheader("Current Data")
-                        st.dataframe(loaded_data, height=400)
-                except Exception as e:
-                    st.error(f"Error loading file: {str(e)}")
+                for file_name, file_data in st.session_state.recent_files:
+                    if file_name == selected_file:
+                        st.session_state.projects[project_name]['data'] = file_data
+                        st.success(f"Loaded data from {selected_file}")
+                        # Refresh the current data display
+                        with col1:
+                            st.subheader("Current Data")
+                            st.dataframe(file_data, height=400)
+                        break
         else:
             st.write("No recent files available.")
 
