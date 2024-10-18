@@ -16,10 +16,10 @@ def get_csv_data():
     if uploaded_file is not None:
         data = pd.read_csv(uploaded_file)
         # Save the file name and data in session state
-        if 'recent_files' not in st.session_state:
-            st.session_state.recent_files = []
-        st.session_state.recent_files.append((uploaded_file.name, data))
-        st.session_state.recent_files = st.session_state.recent_files[-5:]  # Keep only the last 5 files
+        if 'csv_files' not in st.session_state:
+            st.session_state.csv_files = []
+        st.session_state.csv_files.append((uploaded_file.name, data))
+        st.session_state.csv_files = st.session_state.csv_files[-5:]  # Keep only the last 5 files
     return data
 
 def get_pub_sheets_data():
@@ -33,10 +33,15 @@ def get_pub_sheets_data():
                 # Create a connection object and read spreadsheet
                 conn = st.connection("gsheets", type=GSheetsConnection)
                 data = conn.read(spreadsheet=sheet_url) #, worksheet=sheet_name)    # fix worksheet specification
+                # Save the sheet name and data in session state
+                if 'sheets_files' not in st.session_state:
+                    st.session_state.sheets_files = []
+                st.session_state.sheets_files.append((sheet_name, data))
+                st.session_state.sheets_files = st.session_state.sheets_files[-5:]  # Keep only the last 5 files
             except Exception as e:
                 st.error(f"Error reading sheet: {str(e)}")
         else:
-            st.write('Please fill all requred fields (*)')
+            st.write('Please fill all required fields (*)')
     return data
 
 def show(project_name):
@@ -67,36 +72,52 @@ def show(project_name):
 
     # Store and display the retrieved data
     if new_data is not None:
-        st.session_state.projects[project_name]['data'] = new_data
-        st.write("Data uploaded successfully!")
+        if 'data_sources' not in st.session_state.projects[project_name]:
+            st.session_state.projects[project_name]['data_sources'] = {}
+        st.session_state.projects[project_name]['data_sources'][st.session_state.src] = new_data
+        st.write(f"Data from {st.session_state.src} uploaded successfully!")
 
     # Display current data and recent files side by side
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("Current Data")
-        if st.session_state.projects[project_name]['data'] is not None:
-            st.dataframe(st.session_state.projects[project_name]['data'], height=400)
+        if 'data_sources' in st.session_state.projects[project_name]:
+            for source, data in st.session_state.projects[project_name]['data_sources'].items():
+                st.write(f"Data from {source}:")
+                st.dataframe(data, height=200)
         else:
             st.write("No data uploaded yet.")
 
     with col2:
         st.subheader("Recent Files")
-        if 'recent_files' in st.session_state and st.session_state.recent_files:
-            file_names = [file[0] for file in st.session_state.recent_files]
-            selected_file = st.selectbox("Select a recent file", file_names)
-            if st.button("Load Selected File"):
-                for file_name, file_data in st.session_state.recent_files:
-                    if file_name == selected_file:
-                        st.session_state.projects[project_name]['data'] = file_data
-                        st.success(f"Loaded data from {selected_file}")
-                        # Refresh the current data display
-                        with col1:
-                            st.subheader("Current Data")
-                            st.dataframe(file_data, height=400)
-                        break
-        else:
-            st.write("No recent files available.")
+        tab1, tab2 = st.tabs(["CSV Files", "Google Sheets"])
+        
+        with tab1:
+            if 'csv_files' in st.session_state and st.session_state.csv_files:
+                file_names = [file[0] for file in st.session_state.csv_files]
+                selected_file = st.selectbox("Select a recent CSV file", file_names, key="csv_select")
+                if st.button("Load Selected CSV File"):
+                    for file_name, file_data in st.session_state.csv_files:
+                        if file_name == selected_file:
+                            st.session_state.projects[project_name]['data_sources']['CSV'] = file_data
+                            st.success(f"Loaded CSV data from {selected_file}")
+                            break
+            else:
+                st.write("No recent CSV files available.")
+        
+        with tab2:
+            if 'sheets_files' in st.session_state and st.session_state.sheets_files:
+                sheet_names = [sheet[0] for sheet in st.session_state.sheets_files]
+                selected_sheet = st.selectbox("Select a recent Google Sheet", sheet_names, key="sheet_select")
+                if st.button("Load Selected Google Sheet"):
+                    for sheet_name, sheet_data in st.session_state.sheets_files:
+                        if sheet_name == selected_sheet:
+                            st.session_state.projects[project_name]['data_sources']['Public Google Sheets'] = sheet_data
+                            st.success(f"Loaded Google Sheets data from {selected_sheet}")
+                            break
+            else:
+                st.write("No recent Google Sheets available.")
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
