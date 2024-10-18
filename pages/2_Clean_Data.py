@@ -29,12 +29,7 @@ except ImportError as e:
     DATAMANCER_AVAILABLE = False
 
 def get_openai_client():
-    if "openai_api_key" in st.session_state and st.session_state.openai_api_key:
-        return OpenAI(api_key=st.session_state.openai_api_key)
-    return None
-
-# Replace the global client initialization with:
-client = get_openai_client()
+    return OpenAI(api_key=st.secrets["openai_api_key"])
 
 def clean_dataframe(df, options):
     if not isinstance(df, pd.DataFrame):
@@ -103,12 +98,8 @@ def clean_dataframe(df, options):
         return None
 
 def get_ai_cleaning_suggestions(data):
-    global client
+    client = get_openai_client()
     try:
-        if client is None:
-            st.error("OpenAI client is not initialized. Please enter your API key.")
-            return "Unable to get AI cleaning suggestions at this time."
-        
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -122,11 +113,7 @@ def get_ai_cleaning_suggestions(data):
         return "Unable to get AI cleaning suggestions at this time."
 
 def modify_data_with_ai(prompt, data):
-    global client
-    if client is None:
-        st.error("OpenAI client is not initialized. Please enter your API key.")
-        return "Unable to modify data with AI at this time."
-    
+    client = get_openai_client()
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
@@ -355,11 +342,7 @@ def show(project_name):
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 def get_ai_response(prompt):
-    if "openai_api_key" not in st.session_state or not st.session_state.openai_api_key:
-        return "Please enter your OpenAI API key in the main page to use this feature."
-    
-    client = OpenAI(api_key=st.session_state.openai_api_key)
-    
+    client = get_openai_client()
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
