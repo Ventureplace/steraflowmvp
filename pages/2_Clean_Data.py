@@ -140,8 +140,8 @@ def generate_download_link(df, filename="data_report.csv"):
 def show(project_name):
     st.header(f"Data Cleaning for Project: {project_name}")
 
-    # Add chat button
-    chat_button = st.button("Chat with AI", key="chat_button")
+    # Remove this line
+    # chat_button = st.button("Chat with AI", key="chat_button")
 
     if project_name not in st.session_state.projects:
         st.warning(f"Project '{project_name}' not found.")
@@ -320,8 +320,8 @@ def show(project_name):
     if 'messages' not in st.session_state:
         st.session_state.messages = []
 
-    # Floating chat button
-    chat_button = st.button("💬 Chat with AI", key="chat_button")
+    # Floating chat button (with a unique key)
+    chat_button = st.button("💬 Chat with AI", key="floating_chat_button")
 
     if chat_button:
         st.session_state.chat_open = not st.session_state.chat_open
