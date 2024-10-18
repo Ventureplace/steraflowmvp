@@ -314,34 +314,38 @@ def show(project_name):
                         st.error(f"Error modifying data for {source}: {str(e)}")
 
     # Chat functionality
-    if chat_button:
-        st.session_state.chat_open = True
-
     if 'chat_open' not in st.session_state:
         st.session_state.chat_open = False
 
     if 'messages' not in st.session_state:
         st.session_state.messages = []
 
-    if st.session_state.chat_open:
-        # Chat popup
-        with st.sidebar:
-            st.subheader("Chat with AI")
-            
-            for message in st.session_state.messages:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
+    # Create a container for the chat
+    chat_container = st.container()
 
-            if prompt := st.chat_input("What would you like to know?"):
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                with st.chat_message("user"):
-                    st.markdown(prompt)
+    # Floating chat bar
+    with st.expander("Chat with AI", expanded=st.session_state.chat_open):
+        st.subheader("Chat with AI")
+        
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-                with st.chat_message("assistant"):
-                    message_placeholder = st.empty()
-                    full_response = get_ai_response(prompt)
-                    message_placeholder.markdown(full_response)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+        if prompt := st.chat_input("What would you like to know?"):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                full_response = get_ai_response(prompt)
+                message_placeholder.markdown(full_response)
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+    # Toggle chat open/close when the button is clicked
+    if chat_button:
+        st.session_state.chat_open = not st.session_state.chat_open
+        st.experimental_rerun()
 
 def get_ai_response(prompt):
     client = OpenAI(api_key=st.secrets["openai_api_key"])
