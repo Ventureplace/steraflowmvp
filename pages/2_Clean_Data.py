@@ -29,7 +29,9 @@ except ImportError as e:
     DATAMANCER_AVAILABLE = False
 
 def get_openai_client():
-    return OpenAI(api_key=st.secrets["openai_api_key"])
+    if "openai_api_key" in st.session_state and st.session_state.openai_api_key:
+        return OpenAI(api_key=st.session_state.openai_api_key)
+    return None
 
 # Replace the global client initialization with:
 client = get_openai_client()
@@ -353,7 +355,10 @@ def show(project_name):
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 def get_ai_response(prompt):
-    client = OpenAI(api_key=st.secrets["openai_api_key"])
+    if "openai_api_key" not in st.session_state or not st.session_state.openai_api_key:
+        return "Please enter your OpenAI API key in the main page to use this feature."
+    
+    client = OpenAI(api_key=st.session_state.openai_api_key)
     
     try:
         response = client.chat.completions.create(
