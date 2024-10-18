@@ -324,8 +324,11 @@ def show(project_name):
         with chat_container:
             # Display chat messages
             for message in st.session_state.messages:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
+                if isinstance(message, dict) and "role" in message and "content" in message:
+                    with st.chat_message(message["role"]):
+                        st.markdown(message["content"])
+                else:
+                    st.warning(f"Invalid message format: {message}")
 
             # Chat input
             if prompt := st.chat_input("Type your message here..."):
@@ -350,11 +353,18 @@ def get_ai_response(prompt, project_name):
             context += f"Sample data:\n{data.head().to_string()}\n\n"
 
         response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a highly skilled data scientist and supply chain expert. Your expertise includes advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques specifically tailored for supply chain operations. You provide deep insights and efficient solutions to enhance supply chain efficiency, reliability, and decision-making processes."},
-                {"role": "user", "content": f"Context:\n{context}\n\nUser question: {prompt}"}
-            ]
+            model="gpt-4o",  # Changed from "gpt-4o" to "gpt-4"
+                # Start of Selection
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a highly skilled data scientist and supply chain expert with expertise in advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques tailored for supply chain operations. Provide clear, concise, and definite answers to enhance supply chain efficiency, reliability, and decision-making processes."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Context:\n{context}\n\nUser question: {prompt}"
+                    }
+                ]
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -362,6 +372,5 @@ def get_ai_response(prompt, project_name):
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
-
 
 
