@@ -8,6 +8,7 @@ import json
 from io import BytesIO
 from scipy import stats
 import utils
+import base64
 
 # Add the parent directory to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -129,6 +130,12 @@ def modify_data_with_ai(prompt, data):
     )
     return response.choices[0].message.content
 
+def generate_download_link(df, filename="data_report.csv"):
+    csv = df.to_csv(index=False)
+    b64 = base64.b64encode(csv.encode()).decode()
+    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">Download Data Report</a>'
+    return href
+
 def show(project_name):
     st.header(f"Data Cleaning for Project: {project_name}")
 
@@ -203,15 +210,6 @@ def show(project_name):
                     st.subheader("Cleaned Data")
                     st.dataframe(cleaned_data)
 
-                    st.subheader("Edit Cleaned Data")
-                    final_cleaned_data = st.data_editor(cleaned_data, num_rows="dynamic", key=f"editor_{project_name}_{source}_cleaned")
-
-                    if not final_cleaned_data.equals(cleaned_data):
-                        st.session_state.projects[project_name]['cleaned_data_sources'][source] = final_cleaned_data
-                        st.success(f"Cleaned data for {source} updated successfully!")
-
-                    cleaned_data = final_cleaned_data  # Use the final edited cleaned data
-
                     st.subheader("Cleaning Summary")
                     st.write(f"Original shape: {data.shape}")
                     st.write(f"Cleaned shape: {cleaned_data.shape}")
@@ -233,6 +231,12 @@ def show(project_name):
                     
                     if options['handle_skewness']:
                         st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
+
+                    # Generate and display download link for data report
+                    st.markdown("### Download Data Report")
+                    download_link = generate_download_link(cleaned_data, f"{source}_cleaned_data_report.csv")
+                    st.markdown(download_link, unsafe_allow_html=True)
+
                 else:
                     st.error(f"Data cleaning for {source} failed. Please check your data and try again.")
 
