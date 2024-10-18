@@ -71,12 +71,6 @@ def update_sidebar():
     curr_proj = st.session_state.current_project if 'current_project' in st.session_state else 'None'
     st.sidebar.write(f"Project: {curr_proj}")
 
-    # Check OpenAI client status
-    if 'client' in st.session_state and st.session_state.client is not None:
-        st.sidebar.success("OpenAI client initialized")
-    else:
-        st.sidebar.warning("OpenAI client not initialized. Some features may be limited.")
-
 def select_project(project_name):
     if project_name:
         st.session_state.current_project = project_name
@@ -86,3 +80,4 @@ def select_project(project_name):
 def init():
     init_session_state()
     update_sidebar()
+
