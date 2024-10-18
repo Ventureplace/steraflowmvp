@@ -308,6 +308,10 @@ def show(project_name):
     # Chat functionality
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
+    
+    # Initialize chat_open if it doesn't exist
+    if 'chat_open' not in st.session_state:
+        st.session_state.chat_open = False
 
     # Floating chat button (with a unique key)
     chat_button = st.button("💬 Chat with Your Data", key="floating_chat_button")
