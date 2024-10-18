@@ -2,6 +2,7 @@ import streamlit as st
 import utils
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
+import os
 
 # Initialize session
 utils.init()
@@ -14,6 +15,11 @@ def get_csv_data():
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     if uploaded_file is not None:
         data = pd.read_csv(uploaded_file)
+        # Save the file name in session state
+        if 'recent_files' not in st.session_state:
+            st.session_state.recent_files = []
+        st.session_state.recent_files.append(uploaded_file.name)
+        st.session_state.recent_files = st.session_state.recent_files[-5:]  # Keep only the last 5 files
     return data
 
 def get_pub_sheets_data():
@@ -60,38 +66,37 @@ def show(project_name):
         st.write(f"Source not yet supported: {st.session_state.src}")
 
     # Store and display the retrieved data
-    data = new_data if new_data is not None else st.session_state.projects[project_name]['data']
-    if data is not None:
-        st.session_state.projects[project_name]['data'] = data
+    if new_data is not None:
+        st.session_state.projects[project_name]['data'] = new_data
+        st.write("Data uploaded successfully!")
 
-        # Show appropriate headings
-        if new_data is not None:
-            st.write("Data uploaded successfully!")
+    # Display current data and recent files side by side
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Current Data")
+        if st.session_state.projects[project_name]['data'] is not None:
+            st.dataframe(st.session_state.projects[project_name]['data'], height=400)
+        else:
+            st.write("No data uploaded yet.")
 
-        # Display current data and edit data side by side
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Current Data")
-            st.dataframe(data, height=400)
-
-        with col2:
-            st.subheader("Edit Data")
-            edited_data = st.data_editor(data, num_rows="dynamic", height=400)
-
-        if not edited_data.equals(data):
-            st.session_state.projects[project_name]['data'] = edited_data
-            st.success("Data updated successfully!")
-            
-            # Update the current data display
-            with col1:
-                st.subheader("Updated Current Data")
-                st.dataframe(edited_data, height=400)
-
-        # Display cleaned data separately
-        st.subheader("Cleaned Data")
-        cleaned_data = st.session_state.projects[project_name].get('cleaned_data', pd.DataFrame())
-        st.dataframe(cleaned_data, height=400)
+    with col2:
+        st.subheader("Recent Files")
+        if 'recent_files' in st.session_state and st.session_state.recent_files:
+            selected_file = st.selectbox("Select a recent file", st.session_state.recent_files)
+            if st.button("Load Selected File"):
+                try:
+                    loaded_data = pd.read_csv(selected_file)
+                    st.session_state.projects[project_name]['data'] = loaded_data
+                    st.success(f"Loaded data from {selected_file}")
+                    # Refresh the current data display
+                    with col1:
+                        st.subheader("Current Data")
+                        st.dataframe(loaded_data, height=400)
+                except Exception as e:
+                    st.error(f"Error loading file: {str(e)}")
+        else:
+            st.write("No recent files available.")
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
