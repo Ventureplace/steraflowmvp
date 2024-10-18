@@ -322,8 +322,6 @@ def show(project_name):
     if st.session_state.chat_open:
         chat_container = st.container()
         with chat_container:
-            st.subheader("Chat with AI")
-            
             # Display chat messages
             for message in st.session_state.messages:
                 with st.chat_message(message["role"]):
@@ -337,21 +335,26 @@ def show(project_name):
 
                 with st.chat_message("assistant"):
                     message_placeholder = st.empty()
-                    full_response = get_ai_response(prompt)
+                    full_response = get_ai_response(prompt, project_name)
                     message_placeholder.markdown(full_response)
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-def get_ai_response(prompt):
+def get_ai_response(prompt, project_name):
     client = get_openai_client()
     try:
+        # Prepare context from cleaned data
+        context = "Available data sources:\n"
+        for source, data in st.session_state.projects[project_name]['cleaned_data_sources'].items():
+            context += f"- {source}: {data.shape[0]} rows, {data.shape[1]} columns\n"
+            context += f"Columns: {', '.join(data.columns)}\n"
+            context += f"Sample data:\n{data.head().to_string()}\n\n"
+
         response = client.chat.completions.create(
             model="gpt-4o",
-                # Start of Selection
-                    # Start of Selection
-                    messages=[
-                        {"role": "system", "content": "You are a highly skilled data scientist and supply chain expert. Your expertise includes advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques specifically tailored for supply chain operations. You provide deep insights and efficient solutions to enhance supply chain efficiency, reliability, and decision-making processes."},
-                        {"role": "user", "content": prompt}
-                    ]
+            messages=[
+                {"role": "system", "content": "You are a highly skilled data scientist and supply chain expert. Your expertise includes advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques specifically tailored for supply chain operations. You provide deep insights and efficient solutions to enhance supply chain efficiency, reliability, and decision-making processes."},
+                {"role": "user", "content": f"Context:\n{context}\n\nUser question: {prompt}"}
+            ]
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -359,4 +362,5 @@ def get_ai_response(prompt):
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
+
 
