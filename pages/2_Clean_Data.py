@@ -185,105 +185,106 @@ def show(project_name):
 
             data = edited_data  # Use the edited data for further processing
 
-            st.subheader("Data Cleaning Options")
+            with st.expander("Data Cleaning Options", expanded=False):
+                st.subheader("Data Cleaning Options")
 
-            col1, col2, col3 = st.columns(3)
+                col1, col2, col3 = st.columns(3)
 
-            with col1:
-                st.markdown("### Basic Cleaning")
-                options['remove_duplicates'] = st.checkbox("Remove Duplicate Rows", key=f"{source}_remove_duplicates")
-                options['handle_missing'] = st.checkbox("Handle Missing Values", key=f"{source}_handle_missing")
-                if options['handle_missing']:
-                    options['missing_numeric_method'] = st.selectbox("Missing Numeric Values Method", ['mean', 'median', 'mode'], key=f"{source}_missing_numeric_method")
-                    options['missing_categorical_method'] = st.selectbox("Missing Categorical Values Method", ['mode', 'constant', 'ffill', 'bfill'], key=f"{source}_missing_categorical_method")
-                    if options['missing_categorical_method'] == 'constant':
-                        options['missing_fill_value'] = st.text_input("Fill Value for Categorical", key=f"{source}_missing_fill_value")
-                options['remove_low_variance'] = st.checkbox("Remove Low Variance Features", key=f"{source}_remove_low_variance")
-                if options['remove_low_variance']:
-                    options['variance_threshold'] = st.slider("Variance Threshold", 0.0, 1.0, 0.1, 0.01, key=f"{source}_variance_threshold")
+                with col1:
+                    st.markdown("### Basic Cleaning")
+                    options['remove_duplicates'] = st.checkbox("Remove Duplicate Rows", key=f"{source}_remove_duplicates")
+                    options['handle_missing'] = st.checkbox("Handle Missing Values", key=f"{source}_handle_missing")
+                    if options['handle_missing']:
+                        options['missing_numeric_method'] = st.selectbox("Missing Numeric Values Method", ['mean', 'median', 'mode'], key=f"{source}_missing_numeric_method")
+                        options['missing_categorical_method'] = st.selectbox("Missing Categorical Values Method", ['mode', 'constant', 'ffill', 'bfill'], key=f"{source}_missing_categorical_method")
+                        if options['missing_categorical_method'] == 'constant':
+                            options['missing_fill_value'] = st.text_input("Fill Value for Categorical", key=f"{source}_missing_fill_value")
+                    options['remove_low_variance'] = st.checkbox("Remove Low Variance Features", key=f"{source}_remove_low_variance")
+                    if options['remove_low_variance']:
+                        options['variance_threshold'] = st.slider("Variance Threshold", 0.0, 1.0, 0.1, 0.01, key=f"{source}_variance_threshold")
 
-            with col2:
-                st.markdown("### Outlier Handling")
-                options['handle_outliers'] = st.checkbox("Handle Outliers", key=f"{source}_handle_outliers")
-                if options['handle_outliers']:
-                    options['outlier_method'] = st.selectbox("Outlier Handling Method", ['IQR', 'zscore', 'winsorize'], key=f"{source}_outlier_method")
-                    if options['outlier_method'] == 'IQR':
-                        options['iqr_multiplier'] = st.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1, key=f"{source}_iqr_multiplier")
-                    elif options['outlier_method'] == 'zscore':
-                        options['zscore_threshold'] = st.slider("Z-Score Threshold", 2.0, 5.0, 3.0, 0.1, key=f"{source}_zscore_threshold")
-                    elif options['outlier_method'] == 'winsorize':
-                        options['winsorize_limits'] = st.slider("Winsorize Limits", 0.0, 0.5, (0.05, 0.95), 0.01, key=f"{source}_winsorize_limits")
+                with col2:
+                    st.markdown("### Outlier Handling")
+                    options['handle_outliers'] = st.checkbox("Handle Outliers", key=f"{source}_handle_outliers")
+                    if options['handle_outliers']:
+                        options['outlier_method'] = st.selectbox("Outlier Handling Method", ['IQR', 'zscore', 'winsorize'], key=f"{source}_outlier_method")
+                        if options['outlier_method'] == 'IQR':
+                            options['iqr_multiplier'] = st.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1, key=f"{source}_iqr_multiplier")
+                        elif options['outlier_method'] == 'zscore':
+                            options['zscore_threshold'] = st.slider("Z-Score Threshold", 2.0, 5.0, 3.0, 0.1, key=f"{source}_zscore_threshold")
+                        elif options['outlier_method'] == 'winsorize':
+                            options['winsorize_limits'] = st.slider("Winsorize Limits", 0.0, 0.5, (0.05, 0.95), 0.01, key=f"{source}_winsorize_limits")
 
-                st.markdown("### Skewness Handling")
-                options['handle_skewness'] = st.checkbox("Handle Skewness", key=f"{source}_handle_skewness")
-                if options['handle_skewness']:
-                    options['skew_threshold'] = st.slider("Skewness Threshold", 0.0, 2.0, 0.5, 0.1, key=f"{source}_skew_threshold")
-                    options['skew_method'] = st.selectbox("Skewness Handling Method", ['log', 'sqrt', 'box-cox'], key=f"{source}_skew_method")
+                    st.markdown("### Skewness Handling")
+                    options['handle_skewness'] = st.checkbox("Handle Skewness", key=f"{source}_handle_skewness")
+                    if options['handle_skewness']:
+                        options['skew_threshold'] = st.slider("Skewness Threshold", 0.0, 2.0, 0.5, 0.1, key=f"{source}_skew_threshold")
+                        options['skew_method'] = st.selectbox("Skewness Handling Method", ['log', 'sqrt', 'box-cox'], key=f"{source}_skew_method")
 
-            with col3:
-                st.markdown("### Data Transformation")
-                options['normalize_data'] = st.checkbox("Normalize/Scale Data", key=f"{source}_normalize_data")
-                if options['normalize_data']:
-                    options['scaling_method'] = st.selectbox("Scaling Method", ['minmax', 'standard', 'robust', 'quantile'], key=f"{source}_scaling_method")
-                
-                options['encode_categorical'] = st.checkbox("Encode Categorical Variables", key=f"{source}_encode_categorical")
-                if options['encode_categorical']:
-                    options['encoding_method'] = st.selectbox("Encoding Method", ['one-hot', 'label', 'ordinal'], key=f"{source}_encoding_method")
-                
-                options['feature_selection'] = st.checkbox("Perform Feature Selection", key=f"{source}_feature_selection")
-                if options['feature_selection']:
-                    options['feature_selection_method'] = st.selectbox("Feature Selection Method", ['correlation', 'mutual_info', 'chi2'], key=f"{source}_feature_selection_method")
-                    options['feature_selection_threshold'] = st.slider("Feature Selection Threshold", 0.0, 1.0, 0.5, 0.01, key=f"{source}_feature_selection_threshold")
+                with col3:
+                    st.markdown("### Data Transformation")
+                    options['normalize_data'] = st.checkbox("Normalize/Scale Data", key=f"{source}_normalize_data")
+                    if options['normalize_data']:
+                        options['scaling_method'] = st.selectbox("Scaling Method", ['minmax', 'standard', 'robust', 'quantile'], key=f"{source}_scaling_method")
+                    
+                    options['encode_categorical'] = st.checkbox("Encode Categorical Variables", key=f"{source}_encode_categorical")
+                    if options['encode_categorical']:
+                        options['encoding_method'] = st.selectbox("Encoding Method", ['one-hot', 'label', 'ordinal'], key=f"{source}_encoding_method")
+                    
+                    options['feature_selection'] = st.checkbox("Perform Feature Selection", key=f"{source}_feature_selection")
+                    if options['feature_selection']:
+                        options['feature_selection_method'] = st.selectbox("Feature Selection Method", ['correlation', 'mutual_info', 'chi2'], key=f"{source}_feature_selection_method")
+                        options['feature_selection_threshold'] = st.slider("Feature Selection Threshold", 0.0, 1.0, 0.5, 0.01, key=f"{source}_feature_selection_threshold")
 
-            if st.button("Apply Data Cleaning", key=f"{source}_apply_cleaning"):
-                cleaned_data = clean_dataframe(data, options)
-                if cleaned_data is not None:
-                    st.session_state.projects[project_name]['cleaned_data_sources'][source] = cleaned_data
-                    st.success(f"Data cleaning for {source} applied and saved successfully!")
+                if st.button("Apply Data Cleaning", key=f"{source}_apply_cleaning"):
+                    cleaned_data = clean_dataframe(data, options)
+                    if cleaned_data is not None:
+                        st.session_state.projects[project_name]['cleaned_data_sources'][source] = cleaned_data
+                        st.success(f"Data cleaning for {source} applied and saved successfully!")
 
-                    st.subheader("Cleaned Data")
-                    st.dataframe(cleaned_data)
+                        st.subheader("Cleaned Data")
+                        st.dataframe(cleaned_data)
 
-                    # Create two columns for summary and download button
-                    col1, col2 = st.columns([2, 1])
+                        # Create two columns for summary and download button
+                        col1, col2 = st.columns([2, 1])
 
-                    with col1:
-                        st.subheader("Cleaning Summary")
-                        st.write(f"Original shape: {data.shape}")
-                        st.write(f"Cleaned shape: {cleaned_data.shape}")
-                        
-                        if options['remove_duplicates']:
-                            st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
-                        
-                        if options['handle_missing']:
-                            st.write("Missing values handled")
-                        
-                        if options['handle_outliers']:
-                            st.write(f"Outliers handled using {options['outlier_method']} method")
-                        
-                        if options['normalize_data']:
-                            st.write(f"Data normalized using {options['scaling_method']} scaling")
-                        
-                        if options['remove_low_variance']:
-                            st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
-                        
-                        if options['handle_skewness']:
-                            st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
+                        with col1:
+                            st.subheader("Cleaning Summary")
+                            st.write(f"Original shape: {data.shape}")
+                            st.write(f"Cleaned shape: {cleaned_data.shape}")
+                            
+                            if options['remove_duplicates']:
+                                st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
+                            
+                            if options['handle_missing']:
+                                st.write("Missing values handled")
+                            
+                            if options['handle_outliers']:
+                                st.write(f"Outliers handled using {options['outlier_method']} method")
+                            
+                            if options['normalize_data']:
+                                st.write(f"Data normalized using {options['scaling_method']} scaling")
+                            
+                            if options['remove_low_variance']:
+                                st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
+                            
+                            if options['handle_skewness']:
+                                st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
 
-                    with col2:
-                        csv = cleaned_data.to_csv(index=False)
-                        b64 = base64.b64encode(csv.encode()).decode()
-                        href = f'data:file/csv;base64,{b64}'
-                        st.download_button(
-                            label="Download Data Report",
-                            data=csv,
-                            file_name=f"{source}_cleaned_data_report.csv",
-                            mime="text/csv",
-                            key=f"{source}_download_report"
-                        )
+                        with col2:
+                            csv = cleaned_data.to_csv(index=False)
+                            b64 = base64.b64encode(csv.encode()).decode()
+                            href = f'data:file/csv;base64,{b64}'
+                            st.download_button(
+                                label="Download Data Report",
+                                data=csv,
+                                file_name=f"{source}_cleaned_data_report.csv",
+                                mime="text/csv",
+                                key=f"{source}_download_report"
+                            )
 
-                else:
-                    st.error(f"Data cleaning for {source} failed. Please check your data and try again.")
+                    else:
+                        st.error(f"Data cleaning for {source} failed. Please check your data and try again.")
 
             st.subheader("AI Cleaning Suggestions")
             if st.button("Get AI Cleaning Suggestions", key=f"{source}_ai_suggestions"):
