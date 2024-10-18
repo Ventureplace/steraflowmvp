@@ -27,7 +27,7 @@ except ImportError as e:
     DATAMANCER_AVAILABLE = False
 
 # Initialize OpenAI client
-client = st.session_state.client
+client = st.session_state.get('client', None)
 
 def clean_dataframe(df, options):
     if not isinstance(df, pd.DataFrame):
@@ -44,9 +44,10 @@ def clean_dataframe(df, options):
             for col in cleaned_df.columns:
                 if cleaned_df[col].isnull().sum() > 0:
                     if pd.api.types.is_numeric_dtype(cleaned_df[col]):
-                        if options['missing_numeric_method'] == 'mean':
+                        method = options['missing_numeric_method']
+                        if method == 'mean':
                             cleaned_df[col].fillna(cleaned_df[col].mean(), inplace=True)
-                        elif options['missing_numeric_method'] == 'median':
+                        elif method == 'median':
                             cleaned_df[col].fillna(cleaned_df[col].median(), inplace=True)
                         else:  # mode
                             cleaned_df[col].fillna(cleaned_df[col].mode()[0], inplace=True)
@@ -120,24 +121,28 @@ def modify_data_with_ai(prompt, data):
         st.error("OpenAI client is not initialized. Please enter your API key.")
         return "Unable to modify data with AI at this time."
     
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful data modification assistant. Provide Python code to modify the data based on the user's request."},
-            {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser request: {prompt}\n\nProvide Python code to modify the data:"}
-        ]
-    )
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful data modification assistant. Provide Python code to modify the data based on the user's request."},
+                {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser request: {prompt}\n\nProvide Python code to modify the data:"}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Error generating modification code: {str(e)}")
+        return "Unable to generate modification code at this time."
 
 def show(project_name):
-    st.header(f"Data Cleaning for Project: {project_name}")
+    st.header(f"📊 Data Cleaning for Project: {project_name}")
 
     if project_name not in st.session_state.projects:
-        st.warning(f"Project '{project_name}' not found.")
+        st.warning(f"🔍 Project '{project_name}' not found.")
         return
 
     if 'data_sources' not in st.session_state.projects[project_name] or not st.session_state.projects[project_name]['data_sources']:
-        st.warning("No data available. Please upload data first.")
+        st.warning("🚫 No data available. Please upload data first.")
         return
 
     # Initialize cleaned_data_sources if it doesn't exist
@@ -150,102 +155,180 @@ def show(project_name):
 
     for i, (source, data) in enumerate(data_sources.items()):
         with tabs[i]:
-            st.subheader(f"Data from {source}")
+            st.subheader(f"📁 Data from {source}")
             if not isinstance(data, pd.DataFrame):
                 st.error(f"The data from {source} is not in the correct format. Please upload a valid dataset.")
                 continue
 
             # Display original and editable data
-            if source == 'CSV':
+            if source.lower() == 'csv':
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.subheader("Original Data")
-                    st.dataframe(data, height=400)
+                    st.markdown("### 📄 Original Data")
+                    st.dataframe(data, height=300)
 
                 with col2:
-                    st.subheader("Edit Data")
-                    edited_data = st.data_editor(data, num_rows="dynamic", key=f"editor_{project_name}_{source}_original", height=400)
+                    st.markdown("### ✏️ Edit Data")
+                    edited_data = st.data_editor(
+                        data,
+                        num_rows="dynamic",
+                        key=f"editor_{project_name}_{source}_original",
+                        height=300
+                    )
             else:
-                st.subheader("Original Data")
-                st.dataframe(data)
+                st.markdown("### 📄 Original Data")
+                st.dataframe(data, height=300)
 
-                st.subheader("Edit Data")
-                edited_data = st.data_editor(data, num_rows="dynamic", key=f"editor_{project_name}_{source}_original")
+                st.markdown("### ✏️ Edit Data")
+                edited_data = st.data_editor(
+                    data,
+                    num_rows="dynamic",
+                    key=f"editor_{project_name}_{source}_original"
+                )
 
             if not edited_data.equals(data):
                 st.session_state.projects[project_name]['data_sources'][source] = edited_data
-                st.success(f"Data from {source} updated successfully!")
+                st.success(f"✅ Data from {source} updated successfully!")
 
             data = edited_data  # Use the edited data for further processing
 
-            st.subheader("Data Cleaning Options")
+            st.markdown("### 🧹 Data Cleaning Options")
+            with st.expander("🔧 Configure Cleaning Settings"):
+                # Organize options into collapsible sections for better readability
+                remove_duplicates = st.checkbox("Remove Duplicate Rows", key=f"{source}_remove_duplicates")
+                
+                handle_missing = st.checkbox("Handle Missing Values", key=f"{source}_handle_missing")
+                missing_numeric_method = 'mean'
+                missing_non_numeric_method = 'mode'
+                if handle_missing:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        missing_numeric_method = st.selectbox(
+                            "Missing Numeric Values Method",
+                            ['mean', 'median', 'mode'],
+                            key=f"{source}_missing_numeric_method"
+                        )
+                    with col2:
+                        missing_non_numeric_method = st.selectbox(
+                            "Missing Non-Numeric Values Method",
+                            ['mode', 'forward fill', 'backward fill'],
+                            key=f"{source}_missing_non_numeric_method"
+                        )
 
-            options = {
-                'remove_duplicates': st.checkbox("Remove Duplicate Rows", key=f"{source}_remove_duplicates"),
-                'handle_missing': st.checkbox("Handle Missing Values", key=f"{source}_handle_missing"),
-                'missing_numeric_method': st.selectbox("Missing Numeric Values Method", ['mean', 'median', 'mode'], key=f"{source}_missing_numeric_method"),
-                'handle_outliers': st.checkbox("Handle Outliers", key=f"{source}_handle_outliers"),
-                'outlier_method': st.selectbox("Outlier Handling Method", ['IQR', 'zscore'], key=f"{source}_outlier_method"),
-                'normalize_data': st.checkbox("Normalize/Scale Data", key=f"{source}_normalize_data"),
-                'scaling_method': st.selectbox("Scaling Method", ['minmax', 'standard'], key=f"{source}_scaling_method"),
-                'remove_low_variance': st.checkbox("Remove Low Variance Features", key=f"{source}_remove_low_variance"),
-                'variance_threshold': st.slider("Variance Threshold", 0.0, 1.0, 0.1, 0.01, key=f"{source}_variance_threshold"),
-                'handle_skewness': st.checkbox("Handle Skewness", key=f"{source}_handle_skewness"),
-                'skew_threshold': st.slider("Skewness Threshold", 0.0, 1.0, 0.5, 0.01, key=f"{source}_skew_threshold")
-            }
+                handle_outliers = st.checkbox("Handle Outliers", key=f"{source}_handle_outliers")
+                outlier_method = 'IQR'
+                if handle_outliers:
+                    outlier_method = st.selectbox(
+                        "Outlier Handling Method",
+                        ['IQR', 'zscore'],
+                        key=f"{source}_outlier_method"
+                    )
 
-            if st.button("Apply Data Cleaning", key=f"{source}_apply_cleaning"):
+                normalize_data = st.checkbox("Normalize/Scale Data", key=f"{source}_normalize_data")
+                scaling_method = 'minmax'
+                if normalize_data:
+                    scaling_method = st.selectbox(
+                        "Scaling Method",
+                        ['minmax', 'standard'],
+                        key=f"{source}_scaling_method"
+                    )
+
+                remove_low_variance = st.checkbox("Remove Low Variance Features", key=f"{source}_remove_low_variance")
+                variance_threshold = 0.1
+                if remove_low_variance:
+                    variance_threshold = st.slider(
+                        "Variance Threshold",
+                        0.0,
+                        1.0,
+                        0.1,
+                        0.01,
+                        key=f"{source}_variance_threshold"
+                    )
+
+                handle_skewness = st.checkbox("Handle Skewness", key=f"{source}_handle_skewness")
+                skew_threshold = 0.5
+                if handle_skewness:
+                    skew_threshold = st.slider(
+                        "Skewness Threshold",
+                        0.0,
+                        3.0,
+                        0.5,
+                        0.1,
+                        key=f"{source}_skew_threshold"
+                    )
+
+                # Additional cleaning options can be added here
+
+                # Consolidate options into a dictionary
+                options = {
+                    'remove_duplicates': remove_duplicates,
+                    'handle_missing': handle_missing,
+                    'missing_numeric_method': missing_numeric_method,
+                    'missing_non_numeric_method': missing_non_numeric_method,
+                    'handle_outliers': handle_outliers,
+                    'outlier_method': outlier_method,
+                    'normalize_data': normalize_data,
+                    'scaling_method': scaling_method,
+                    'remove_low_variance': remove_low_variance,
+                    'variance_threshold': variance_threshold,
+                    'handle_skewness': handle_skewness,
+                    'skew_threshold': skew_threshold
+                }
+
+            if st.button("🧼 Apply Data Cleaning", key=f"{source}_apply_cleaning"):
                 cleaned_data = clean_dataframe(data, options)
                 if cleaned_data is not None:
                     st.session_state.projects[project_name]['cleaned_data_sources'][source] = cleaned_data
-                    st.success(f"Data cleaning for {source} applied and saved successfully!")
+                    st.success(f"✅ Data cleaning for {source} applied and saved successfully!")
 
-                    st.subheader("Cleaned Data")
-                    st.dataframe(cleaned_data)
+                    st.markdown("### 🆕 Cleaned Data")
+                    st.dataframe(cleaned_data, height=300)
 
-                    st.subheader("Cleaning Summary")
-                    st.write(f"Original shape: {data.shape}")
-                    st.write(f"Cleaned shape: {cleaned_data.shape}")
-                    
+                    st.markdown("### 📊 Cleaning Summary")
+                    summary_cols = st.columns(2)
+                    summary_cols[0].write(f"**Original shape:** {data.shape}")
+                    summary_cols[1].write(f"**Cleaned shape:** {cleaned_data.shape}")
+
                     if options['remove_duplicates']:
-                        st.write(f"Duplicates removed: {data.shape[0] - cleaned_data.shape[0]}")
-                    
-                    if options['handle_missing']:
-                        st.write("Missing values handled")
-                    
-                    if options['handle_outliers']:
-                        st.write(f"Outliers handled using {options['outlier_method']} method")
-                    
-                    if options['normalize_data']:
-                        st.write(f"Data normalized using {options['scaling_method']} scaling")
-                    
-                    if options['remove_low_variance']:
-                        st.write(f"Low variance features removed (threshold: {options['variance_threshold']})")
-                    
-                    if options['handle_skewness']:
-                        st.write(f"Skewness handled (threshold: {options['skew_threshold']})")
-                else:
-                    st.error(f"Data cleaning for {source} failed. Please check your data and try again.")
+                        duplicates_removed = data.shape[0] - cleaned_data.shape[0]
+                        st.write(f"• **Duplicates removed:** {duplicates_removed}")
 
-            st.subheader("AI Cleaning Suggestions")
-            if st.button("Get AI Cleaning Suggestions", key=f"{source}_ai_suggestions"):
-                with st.spinner("Getting AI suggestions..."):
+                    if options['handle_missing']:
+                        st.write("• **Missing values handled**")
+
+                    if options['handle_outliers']:
+                        st.write(f"• **Outliers handled using {options['outlier_method']} method**")
+
+                    if options['normalize_data']:
+                        st.write(f"• **Data normalized using {options['scaling_method']} scaling**")
+
+                    if options['remove_low_variance']:
+                        st.write(f"• **Low variance features removed (threshold: {options['variance_threshold']})**")
+
+                    if options['handle_skewness']:
+                        st.write(f"• **Skewness handled (threshold: {options['skew_threshold']})**")
+
+            st.markdown("---")
+
+            st.subheader("💡 AI Cleaning Suggestions")
+            if st.button("🔍 Get AI Cleaning Suggestions", key=f"{source}_ai_suggestions"):
+                with st.spinner("⏳ Getting AI suggestions..."):
                     suggestions = get_ai_cleaning_suggestions(data)
                     st.write(suggestions)
 
-            st.subheader("Modify Data with AI")
-            modification_prompt = st.text_input("Describe how you want to modify the data:", key=f"{source}_modification_prompt")
+            st.subheader("🤖 Modify Data with AI")
+            modification_prompt = st.text_input("📝 Describe how you want to modify the data:", key=f"{source}_modification_prompt")
             if modification_prompt:
                 modification_code = modify_data_with_ai(modification_prompt, data)
                 st.code(modification_code, language="python")
-                if st.button("Apply Modification", key=f"{source}_apply_modification"):
+                if st.button("✅ Apply Modification", key=f"{source}_apply_modification"):
                     try:
                         exec(modification_code)
                         st.session_state.projects[project_name]['data_sources'][source] = data
-                        st.success(f"Data for {source} modified successfully!")
-                        st.dataframe(data)
+                        st.success(f"✅ Data for {source} modified successfully!")
+                        st.dataframe(data, height=300)
                     except Exception as e:
-                        st.error(f"Error modifying data for {source}: {str(e)}")
+                        st.error(f"❌ Error modifying data for {source}: {str(e)}")
 
-if __name__ == "__main__":
-    show(st.session_state.current_project)
+    if __name__ == "__main__":
+        show(st.session_state.get('current_project', 'Default Project'))
