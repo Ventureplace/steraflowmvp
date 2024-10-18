@@ -9,6 +9,7 @@ from io import BytesIO
 from scipy import stats
 import utils
 import base64
+import time
 
 # Add the parent directory to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -138,6 +139,9 @@ def generate_download_link(df, filename="data_report.csv"):
 
 def show(project_name):
     st.header(f"Data Cleaning for Project: {project_name}")
+
+    # Add chat button
+    chat_button = st.button("Chat with AI", key="chat_button")
 
     if project_name not in st.session_state.projects:
         st.warning(f"Project '{project_name}' not found.")
@@ -308,6 +312,51 @@ def show(project_name):
                         st.dataframe(data)
                     except Exception as e:
                         st.error(f"Error modifying data for {source}: {str(e)}")
+
+    # Chat functionality
+    if chat_button:
+        st.session_state.chat_open = True
+
+    if 'chat_open' not in st.session_state:
+        st.session_state.chat_open = False
+
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+
+    if st.session_state.chat_open:
+        # Chat popup
+        with st.sidebar:
+            st.subheader("Chat with AI")
+            
+            for message in st.session_state.messages:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
+            if prompt := st.chat_input("What would you like to know?"):
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                with st.chat_message("user"):
+                    st.markdown(prompt)
+
+                with st.chat_message("assistant"):
+                    message_placeholder = st.empty()
+                    full_response = get_ai_response(prompt)
+                    message_placeholder.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+def get_ai_response(prompt):
+    client = OpenAI(api_key=st.secrets["openai_api_key"])
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant for data cleaning and analysis."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"An error occurred: {str(e)}"
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
