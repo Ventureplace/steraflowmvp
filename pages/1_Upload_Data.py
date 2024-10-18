@@ -67,20 +67,35 @@ def show(project_name):
         # Show appropriate headings
         if new_data is not None:
             st.write("Data uploaded successfully!")
-            st.subheader("Uploaded Data")
-        else:
-            st.subheader("Current Data")
 
-        st.dataframe(data)  # Display the uploaded data as a dataframe
+        # Display current and cleaned data side by side
+        col1, col2 = st.columns(2)
         
+        with col1:
+            st.subheader("Current Data")
+            st.dataframe(data, height=400)
+
+        with col2:
+            st.subheader("Cleaned Data")
+            cleaned_data = st.session_state.projects[project_name].get('cleaned_data', pd.DataFrame())
+            st.dataframe(cleaned_data, height=400)
+
         st.subheader("Edit Data")
         edited_data = st.data_editor(data, num_rows="dynamic")
         if not edited_data.equals(data):
             st.session_state.projects[project_name]['data'] = edited_data
             st.success("Data updated successfully!")
             
-            st.subheader("Updated Data")
-            st.dataframe(edited_data)  # Display the updated data as a dataframe
+            # Update the side-by-side display
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("Updated Current Data")
+                st.dataframe(edited_data, height=400)
+
+            with col2:
+                st.subheader("Cleaned Data")
+                st.dataframe(cleaned_data, height=400)
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
