@@ -78,9 +78,10 @@ def update_sidebar():
         st.sidebar.warning("OpenAI client not initialized. Some features may be limited.")
 
 def select_project(project_name):
-    st.session_state.current_project = project_name
-    if project_name not in st.session_state.projects:
-        st.session_state.projects[project_name] = {'data': None, 'cleaned_data': None}
+    if project_name:
+        st.session_state.current_project = project_name
+        if project_name not in st.session_state.projects:
+            st.session_state.projects[project_name] = {"data_sources": {}}
 
 def init():
     init_session_state()

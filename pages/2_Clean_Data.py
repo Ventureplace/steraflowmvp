@@ -28,8 +28,12 @@ except ImportError as e:
     print(f"Warning: Error importing from datamancer. {str(e)}")
     DATAMANCER_AVAILABLE = False
 
-# Initialize OpenAI client
-client = st.session_state.client
+@st.cache_resource
+def get_openai_client():
+    return OpenAI(api_key=st.secrets["openai_api_key"])
+
+# Replace the global client initialization with:
+client = get_openai_client()
 
 def clean_dataframe(df, options):
     if not isinstance(df, pd.DataFrame):
@@ -97,6 +101,7 @@ def clean_dataframe(df, options):
         st.error(f"An error occurred during data cleaning: {str(e)}")
         return None
 
+@st.cache_data(ttl=900)  # 15 minutes TTL
 def get_ai_cleaning_suggestions(data):
     global client
     try:
@@ -116,6 +121,7 @@ def get_ai_cleaning_suggestions(data):
         st.error(f"Error getting AI cleaning suggestions: {str(e)}")
         return "Unable to get AI cleaning suggestions at this time."
 
+@st.cache_data(ttl=900)  # 15 minutes TTL
 def modify_data_with_ai(prompt, data):
     global client
     if client is None:
@@ -131,6 +137,7 @@ def modify_data_with_ai(prompt, data):
     )
     return response.choices[0].message.content
 
+@st.cache_data
 def generate_download_link(df, filename="data_report.csv"):
     csv = df.to_csv(index=False)
     b64 = base64.b64encode(csv.encode()).decode()
