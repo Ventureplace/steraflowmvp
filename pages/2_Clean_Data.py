@@ -122,7 +122,7 @@ def modify_data_with_ai(prompt, data):
         return "Unable to modify data with AI at this time."
     
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a helpful data modification assistant. Provide Python code to modify the data based on the user's request."},
             {"role": "user", "content": f"Given the following data:\n\n{data.to_string()}\n\nUser request: {prompt}\n\nProvide Python code to modify the data:"}
