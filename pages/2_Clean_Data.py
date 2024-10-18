@@ -306,11 +306,8 @@ def show(project_name):
                         st.error(f"Error modifying data for {source}: {str(e)}")
 
     # Chat functionality
-    if 'chat_open' not in st.session_state:
-        st.session_state.chat_open = False
-
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = []
 
     # Floating chat button (with a unique key)
     chat_button = st.button("💬 Chat with Your Data", key="floating_chat_button")
@@ -322,49 +319,49 @@ def show(project_name):
     if st.session_state.chat_open:
         chat_container = st.container()
         with chat_container:
-            # Display chat messages
-            for message in st.session_state.messages:
-                if isinstance(message, dict) and "role" in message and "content" in message:
-                    with st.chat_message(message["role"]):
-                        st.markdown(message["content"])
-                else:
-                    st.warning(f"Invalid message format: {message}")
+            # Display chat history
+            for message in st.session_state.chat_history:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
 
             # Chat input
             if prompt := st.chat_input("Type your message here..."):
-                st.session_state.messages.append({"role": "user", "content": prompt})
+                # Add user message to chat history
+                st.session_state.chat_history.append({"role": "user", "content": prompt})
                 with st.chat_message("user"):
                     st.markdown(prompt)
 
+                # Get AI response
                 with st.chat_message("assistant"):
                     message_placeholder = st.empty()
                     full_response = get_ai_response(prompt, project_name)
                     message_placeholder.markdown(full_response)
-                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                
+                # Add AI response to chat history
+                st.session_state.chat_history.append({"role": "assistant", "content": full_response})
 
 def get_ai_response(prompt, project_name):
     client = get_openai_client()
     try:
-        # Prepare context from cleaned data
+        # Prepare context from raw data
         context = "Available data sources:\n"
-        for source, data in st.session_state.projects[project_name]['cleaned_data_sources'].items():
+        for source, data in st.session_state.projects[project_name]['data_sources'].items():
             context += f"- {source}: {data.shape[0]} rows, {data.shape[1]} columns\n"
             context += f"Columns: {', '.join(data.columns)}\n"
             context += f"Sample data:\n{data.head().to_string()}\n\n"
 
         response = client.chat.completions.create(
-            model="gpt-4o",  # Changed from "gpt-4o" to "gpt-4"
-                # Start of Selection
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a highly skilled data scientist and supply chain expert with expertise in advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques tailored for supply chain operations. Provide clear, concise, and definite answers to enhance supply chain efficiency, reliability, and decision-making processes."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Context:\n{context}\n\nUser question: {prompt}"
-                    }
-                ]
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a highly skilled data scientist and supply chain expert with expertise in advanced data cleaning, statistical analysis, predictive modeling, and optimization techniques tailored for supply chain operations. Provide clear, concise, specific, and definite answers to enhance supply chain efficiency, reliability, and decision-making processes."
+                },
+                {
+                    "role": "user",
+                    "content": f"Context:\n{context}\n\nUser question: {prompt}"
+                }
+            ]
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -372,5 +369,3 @@ def get_ai_response(prompt, project_name):
 
 if __name__ == "__main__":
     show(st.session_state.current_project)
-
-
