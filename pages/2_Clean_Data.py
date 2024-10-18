@@ -320,88 +320,90 @@ def show(project_name):
     if 'messages' not in st.session_state:
         st.session_state.messages = []
 
-    # Create a container for the chat
-    chat_container = st.container()
-
-    # Floating chat bar
-    chat_container.markdown(
+    # Floating chat button
+    st.markdown(
         """
         <style>
-        .floating-chat {
+        .floating-chat-button {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 300px;
-            height: 400px;
-            background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px;
             z-index: 1000;
-            overflow-y: auto;
         }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    chat_content = ""
-    if st.session_state.chat_open:
-        chat_content += "<div class='floating-chat'>"
-        chat_content += "<h3>Chat with AI</h3>"
-        
-        for message in st.session_state.messages:
-            chat_content += f"<p><strong>{message['role']}:</strong> {message['content']}</p>"
+    chat_button_col = st.container()
+    with chat_button_col:
+        chat_button = st.button("💬 Chat with AI", key="chat_button", help="Open AI chat")
 
-        chat_content += """
-        <input type='text' id='chat-input' placeholder='Type your message...' style='width: 100%;'>
-        <button onclick='send_message()'>Send</button>
-        <script>
-        function send_message() {
-            var input = document.getElementById('chat-input');
-            var message = input.value;
-            if (message) {
-                window.parent.postMessage({type: 'chat_input', message: message}, '*');
-                input.value = '';
-            }
-        }
-        </script>
-        """
-        chat_content += "</div>"
-
-    chat_container.markdown(chat_content, unsafe_allow_html=True)
-
-    # Handle chat input
-    if 'chat_input' not in st.session_state:
-        st.session_state.chat_input = ''
-
-    if st.session_state.chat_input:
-        prompt = st.session_state.chat_input
-        st.session_state.chat_input = ''
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        response = get_ai_response(prompt)
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        st.experimental_rerun()
-
-    # Toggle chat open/close when the button is clicked
     if chat_button:
         st.session_state.chat_open = not st.session_state.chat_open
-        st.experimental_rerun()
 
-    # JavaScript to handle the chat input
-    st.markdown("""
-    <script>
-    window.addEventListener('message', function(e) {
-        if (e.data.type === 'chat_input') {
-            window.parent.postMessage({
-                type: 'streamlit:set_widget_value',
-                key: 'chat_input',
-                value: e.data.message
-            }, '*');
-        }
-    });
-    </script>
-    """, unsafe_allow_html=True)
+    # Floating chat container
+    if st.session_state.chat_open:
+        chat_container = st.container()
+        with chat_container:
+            st.markdown(
+                """
+                <style>
+                .floating-chat-container {
+                    position: fixed;
+                    bottom: 80px;
+                    right: 20px;
+                    width: 300px;
+                    height: 400px;
+                    background-color: white;
+                    border: 1px solid #ddd;
+                    border-radius: 10px;
+                    padding: 10px;
+                    z-index: 1000;
+                    overflow-y: auto;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+                .chat-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
+                }
+                .chat-messages {
+                    height: 300px;
+                    overflow-y: auto;
+                    margin-bottom: 10px;
+                    padding: 5px;
+                    border: 1px solid #eee;
+                    border-radius: 5px;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+
+            with st.container():
+                st.markdown('<div class="floating-chat-container">', unsafe_allow_html=True)
+                st.markdown('<div class="chat-header"><h3>Chat with AI</h3></div>', unsafe_allow_html=True)
+                
+                st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
+                for message in st.session_state.messages:
+                    with st.chat_message(message["role"]):
+                        st.markdown(message["content"])
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                if prompt := st.chat_input("Type your message here..."):
+                    st.session_state.messages.append({"role": "user", "content": prompt})
+                    with st.chat_message("user"):
+                        st.markdown(prompt)
+
+                    with st.chat_message("assistant"):
+                        message_placeholder = st.empty()
+                        full_response = get_ai_response(prompt)
+                        message_placeholder.markdown(full_response)
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+                st.markdown('</div>', unsafe_allow_html=True)
 
 def get_ai_response(prompt):
     client = OpenAI(api_key=st.secrets["openai_api_key"])
