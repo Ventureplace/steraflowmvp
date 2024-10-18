@@ -240,21 +240,6 @@ def show(project_name):
                 else:
                     st.error(f"Data cleaning for {source} failed. Please check your data and try again.")
 
-            # Display cleaned data if it exists
-            if source in st.session_state.projects[project_name]['cleaned_data_sources']:
-                st.subheader("Previously Cleaned Data")
-                st.dataframe(st.session_state.projects[project_name]['cleaned_data_sources'][source])
-
-                if st.button("Edit Previously Cleaned Data", key=f"{source}_edit_cleaned"):
-                    edited_cleaned_data = st.data_editor(
-                        st.session_state.projects[project_name]['cleaned_data_sources'][source],
-                        num_rows="dynamic",
-                        key=f"editor_{project_name}_{source}_cleaned_edit"
-                    )
-                    if not edited_cleaned_data.equals(st.session_state.projects[project_name]['cleaned_data_sources'][source]):
-                        st.session_state.projects[project_name]['cleaned_data_sources'][source] = edited_cleaned_data
-                        st.success(f"Cleaned data for {source} updated successfully!")
-
             st.subheader("AI Cleaning Suggestions")
             if st.button("Get AI Cleaning Suggestions", key=f"{source}_ai_suggestions"):
                 with st.spinner("Getting AI suggestions..."):
