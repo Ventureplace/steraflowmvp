@@ -44,6 +44,9 @@ def get_pub_sheets_data():
             st.write('Please fill all required fields (*)')
     return data
 
+def get_looker_data():
+    return None
+
 def show(project_name):
     st.header(f"Upload Data for Project: {project_name}")
 
@@ -67,6 +70,8 @@ def show(project_name):
         new_data = get_csv_data()
     elif st.session_state.src == 'Public Google Sheets':
         new_data = get_pub_sheets_data()
+    elif st.session_state.src == 'Looker':
+        new_data = get_looker_data()
     else:
         st.write(f"Source not yet supported: {st.session_state.src}")
 
