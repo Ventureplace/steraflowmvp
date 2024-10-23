@@ -40,62 +40,103 @@ def clean_dataframe(df, options):
 
     try:
         if options['remove_duplicates']:
-            cleaned_df = cleaned_df.drop_duplicates()
+            cleaned_df = remove_duplicates(cleaned_df)
 
         if options['handle_missing']:
-            for col in cleaned_df.columns:
-                if cleaned_df[col].isnull().sum() > 0:
-                    if pd.api.types.is_numeric_dtype(cleaned_df[col]):
-                        if options['missing_numeric_method'] == 'mean':
-                            cleaned_df[col].fillna(cleaned_df[col].mean(), inplace=True)
-                        elif options['missing_numeric_method'] == 'median':
-                            cleaned_df[col].fillna(cleaned_df[col].median(), inplace=True)
-                        else:  # mode
-                            cleaned_df[col].fillna(cleaned_df[col].mode()[0], inplace=True)
-                    else:
-                        cleaned_df[col].fillna(cleaned_df[col].mode()[0], inplace=True)
+            cleaned_df = handle_missing(cleaned_df, options['missing_numeric_method'])
 
         if options['handle_outliers']:
-            numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
-            for col in numeric_cols:
-                if options['outlier_method'] == 'IQR':
-                    Q1 = cleaned_df[col].quantile(0.25)
-                    Q3 = cleaned_df[col].quantile(0.75)
-                    IQR = Q3 - Q1
-                    lower_bound = Q1 - 1.5 * IQR
-                    upper_bound = Q3 + 1.5 * IQR
-                    cleaned_df[col] = cleaned_df[col].clip(lower_bound, upper_bound)
-                elif options['outlier_method'] == 'zscore':
-                    z_scores = np.abs((cleaned_df[col] - cleaned_df[col].mean()) / cleaned_df[col].std())
-                    cleaned_df[col] = cleaned_df[col].mask(z_scores > 3, cleaned_df[col].median())
+            cleaned_df = handle_outliers(cleaned_df, options['outlier_method'])
 
         if options['normalize_data']:
-            numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
-            for col in numeric_cols:
-                if options['scaling_method'] == 'minmax':
-                    min_val = cleaned_df[col].min()
-                    max_val = cleaned_df[col].max()
-                    cleaned_df[col] = (cleaned_df[col] - min_val) / (max_val - min_val)
-                else:  # standard
-                    mean_val = cleaned_df[col].mean()
-                    std_val = cleaned_df[col].std()
-                    cleaned_df[col] = (cleaned_df[col] - mean_val) / std_val
+            cleaned_df = normalize_data(cleaned_df, options['scaling_method'])
 
         if options['remove_low_variance']:
-            variance = cleaned_df.var()
-            cleaned_df = cleaned_df.loc[:, variance > options['variance_threshold']]
+            cleaned_df = remove_low_variance(cleaned_df, options['variance_threshold'])
 
         if options['handle_skewness']:
-            numeric_cols = cleaned_df.select_dtypes(include=[np.number]).columns
-            for col in numeric_cols:
-                if abs(stats.skew(cleaned_df[col])) > options['skew_threshold']:
-                    cleaned_df[col] = np.log1p(cleaned_df[col] - cleaned_df[col].min() + 1)
+            cleaned_df = handle_skewness(clean_dataframe, options['skew_threshold'])
 
         return cleaned_df
 
     except Exception as e:
         st.error(f"An error occurred during data cleaning: {str(e)}")
         return None
+
+def remove_duplicates(df):
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"Input data is not a pandas DataFrame. Type: {type(df)}")
+    
+    return df.drop_duplicates()
+
+def handle_missing(df, missing_numeric_method):
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"Input data is not a pandas DataFrame. Type: {type(df)}")
+    
+    for col in df.columns:
+        if df[col].isnull().sum() > 0:
+            if pd.api.types.is_numeric_dtype(df[col]):
+                if missing_numeric_method == 'mean':
+                    df[col].fillna(df[col].mean(), inplace=True)
+                elif missing_numeric_method == 'median':
+                    df[col].fillna(df[col].median(), inplace=True)
+                else:  # mode
+                    df[col].fillna(df[col].mode()[0], inplace=True)
+            else:
+                df[col].fillna(df[col].mode()[0], inplace=True)
+    return df
+
+def handle_outliers(df, outlier_method):
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"Input data is not a pandas DataFrame. Type: {type(df)}")
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        if outlier_method == 'IQR':
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            df[col] = df[col].clip(lower_bound, upper_bound)
+        elif outlier_method == 'zscore':
+            z_scores = np.abs((df[col] - df[col].mean()) / df[col].std())
+            df[col] = df[col].mask(z_scores > 3, df[col].median())
+    return df
+    
+def normalize_data(df, scaling_method):
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"Input data is not a pandas DataFrame. Type: {type(df)}")
+    
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        if scaling_method == 'minmax':
+            min_val = df[col].min()
+            max_val = df[col].max()
+            df[col] = (df[col] - min_val) / (max_val - min_val)
+        else:  # standard
+            mean_val = df[col].mean()
+            std_val = df[col].std()
+            df[col] = (df[col] - mean_val) / std_val
+    return df
+    
+def remove_low_variance(df, variance_threshold):
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"Input data is not a pandas DataFrame. Type: {type(df)}")
+    
+    variance = df.var()
+    df = df.loc[:, variance > variance_threshold]
+    return df
+    
+def handle_skewness(df, skew_threshold):
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"Input data is not a pandas DataFrame. Type: {type(df)}")
+
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        if abs(stats.skew(df[col])) > skew_threshold:
+            df[col] = np.log1p(df[col] - df[col].min() + 1)
+    return df
 
 def get_ai_cleaning_suggestions(data):
     client = get_openai_client()
