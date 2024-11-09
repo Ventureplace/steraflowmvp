@@ -30,39 +30,8 @@ def init_session_state():
         st.session_state.chat_history = []
     if 'src' not in st.session_state:
         st.session_state.src = next(iter(DATA_SOURCES))
-    if 'client' not in st.session_state:
-        st.session_state.client = None
-
-def initialize_openai_client():
-    api_key = st.text_input("Enter your OpenAI API key:", type="password")
-    if api_key:
-        client = OpenAI(api_key=api_key)
-        st.success("API key entered successfully!")
-    else:
-        client = None
-        st.error("Please enter a valid OpenAI API key to use the AI-powered features.")
-    st.session_state.client = client
-    
-
-def get_data_insights(data):
-    if 'client' in st.session_state and st.session_state.client is not None:
-        client = st.session_state.client
-    else:
-        st.error("OpenAI client is not initialized. Please enter your API key.")
-        return "Unable to get data insights at this time."
-    
-    data_description = data.describe().to_string()
-    prompt = f"Given the following dataset description, provide some insights and suggestions for data cleaning:\n\n{data_description}\n\nInsights and suggestions:"
-    
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a helpful data analysis assistant."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    
-    return response.choices[0].message.content
+    if 'chat_assistant' not in st.session_state:
+        st.session_state.chat_assistant = None
 
 def update_sidebar():
     add_logo("./assets/logo.png", height=150)
