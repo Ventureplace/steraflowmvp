@@ -3,3 +3,7 @@ primaryColor="#389e06"
 backgroundColor="#eeeef5"
 secondaryBackgroundColor="#fafbff"
 textColor="#000000"
+
+[server]
+maxUploadSize = 300
+maxMessageSize = 300
