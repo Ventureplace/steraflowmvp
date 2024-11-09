@@ -6,9 +6,8 @@ import utils
 utils.init()
 
 def show():
-    col1, col2 = st.columns([4, 1])
-    col1.header(f"Chat")
-    col2.button('Reset Chat', on_click=reset_conversation)
+    st.header(f"Chat")
+    st.sidebar.button('Reset Chat', on_click=reset_conversation)
 
     # Restore chat history
     for message in st.session_state.chat_history:
