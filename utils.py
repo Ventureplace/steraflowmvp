@@ -3,7 +3,7 @@ from openai import OpenAI
 from streamlit_extras.app_logo import add_logo
 
 DATA_SOURCES = {'CSV': {'icon': None}, 
-                'Public Google Sheets': {'icon': None},
+                'BigQuery': {'icon': None},
                 'Looker': {'icon': None},
                 'Private Google Sheets': {'icon': None},
                 'AWS S3': {'icon': None},

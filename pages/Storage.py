@@ -3,9 +3,17 @@ import utils
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 import os
+from google.oauth2 import service_account
+from google.cloud import bigquery
 
 # Initialize session
 utils.init()
+
+# Create BigQuery client
+credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"]
+)
+client = bigquery.Client(credentials=credentials)
 
 def on_src_change(src):
     st.session_state.src = src
@@ -44,15 +52,42 @@ def get_pub_sheets_data():
             st.write('Please fill all required fields (*)')
     return data
 
+def get_bigquery_data():
+    data = None
+    try:
+        # List all datasets
+        datasets = list(client.list_datasets())
+        if datasets:
+            st.write("Available BigQuery Datasets:")
+            for dataset in datasets:
+                dataset_id = dataset.dataset_id
+                st.write(f"📁 Dataset: {dataset_id}")
+                
+                # List tables in dataset
+                tables = list(client.list_tables(dataset.reference))
+                if tables:
+                    for table in tables:
+                        st.write(f"   📊 Table: {table.table_id}")
+                        # Get table schema
+                        table_ref = client.get_table(table.reference)
+                        schema_df = pd.DataFrame([(field.name, field.field_type) for field in table_ref.schema], 
+                                              columns=['Column', 'Type'])
+                        with st.expander(f"Show {table.table_id} schema"):
+                            st.dataframe(schema_df)
+                else:
+                    st.write("   No tables found in this dataset")
+        else:
+            st.write("No datasets found in this project")
+            
+    except Exception as e:
+        st.error(f"Error accessing BigQuery: {str(e)}")
+    return data
+
 def get_looker_data():
     return None
 
-def show(project_name):
-    st.header(f"Upload Data for Project: {project_name}")
-
-    if project_name not in st.session_state.projects:
-        st.warning(f"Project '{project_name}' not found.")
-        return
+def show():
+    st.header("Connections")
 
     # Add a grid of buttons for each data source
     st.write("Select a Source")
@@ -68,8 +103,8 @@ def show(project_name):
     new_data = None
     if st.session_state.src == 'CSV':
         new_data = get_csv_data()
-    elif st.session_state.src == 'Public Google Sheets':
-        new_data = get_pub_sheets_data()
+    elif st.session_state.src == 'BigQuery':
+        new_data = get_bigquery_data()
     elif st.session_state.src == 'Looker':
         new_data = get_looker_data()
     else:
@@ -77,9 +112,9 @@ def show(project_name):
 
     # Store and display the retrieved data
     if new_data is not None:
-        if 'data_sources' not in st.session_state.projects[project_name]:
-            st.session_state.projects[project_name]['data_sources'] = {}
-        st.session_state.projects[project_name]['data_sources'][st.session_state.src] = new_data
+        if 'data_sources' not in st.session_state:
+            st.session_state.data_sources = {}
+        st.session_state.data_sources[st.session_state.src] = new_data
         st.write(f"Data from {st.session_state.src} uploaded successfully!")
 
     # Display current data and recent files side by side
@@ -87,8 +122,8 @@ def show(project_name):
     
     with col1:
         st.subheader("Current Data")
-        if 'data_sources' in st.session_state.projects[project_name]:
-            for source, data in st.session_state.projects[project_name]['data_sources'].items():
+        if 'data_sources' in st.session_state:
+            for source, data in st.session_state.data_sources.items():
                 st.write(f"Data from {source}:")
                 st.dataframe(data, height=200)
         else:
@@ -105,7 +140,7 @@ def show(project_name):
                 if st.button("Load Selected CSV File"):
                     for file_name, file_data in st.session_state.csv_files:
                         if file_name == selected_file:
-                            st.session_state.projects[project_name]['data_sources']['CSV'] = file_data
+                            st.session_state.data_sources['CSV'] = file_data
                             st.success(f"Loaded CSV data from {selected_file}")
                             break
             else:
@@ -118,11 +153,16 @@ def show(project_name):
                 if st.button("Load Selected Google Sheet"):
                     for sheet_name, sheet_data in st.session_state.sheets_files:
                         if sheet_name == selected_sheet:
-                            st.session_state.projects[project_name]['data_sources']['Public Google Sheets'] = sheet_data
+                            st.session_state.data_sources['Public Google Sheets'] = sheet_data
                             st.success(f"Loaded Google Sheets data from {selected_sheet}")
                             break
             else:
                 st.write("No recent Google Sheets available.")
 
+    st.divider()
+    st.subheader("Knowledge Base")
+   
+
+
 if __name__ == "__main__":
-    show(st.session_state.current_project)
+    show()

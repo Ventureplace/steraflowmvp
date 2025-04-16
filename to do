@@ -1,0 +1,3 @@
+clean ---> context uploads to storage or firestore ---> uploads to biqguery
+
+upload clean data to context to firestore

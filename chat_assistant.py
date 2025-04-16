@@ -1,5 +1,10 @@
 from openai import OpenAI
 import time
+from google.cloud import bigquery
+from google.oauth2 import service_account as gcp_sa
+from google.cloud import firestore as fs
+from google.oauth2 import service_account as fs_sa
+import pandas as pd
 
 CHAT_ASSISTANT_NAME = "Warehouse Data Analyst"  # Name of assistant
 GPT_MODEL = "gpt-4o"
@@ -55,13 +60,13 @@ Provide your analysis result in a user-friendly summary, supported by relevant s
 CHARACTER_STREAM_DELAY = 0.005           
 
 class ChatAssistant:
-    def __init__(self, api_key):
+    def __init__(self, api_key, bq_client, fs_client):
         self.client = OpenAI(api_key=api_key)
+        self.bq_client = bq_client
+        self.fs_client = fs_client
         self.assistant = None
-        self.file_ids = []
         self.thread = None
 
-        self.get_files()
         self.get_assistant()
 
     def get_assistant(self):
@@ -77,32 +82,16 @@ class ChatAssistant:
                 name = CHAT_ASSISTANT_NAME,
                 instructions = ASSISTANT_INSTRUCTIONS,
                 model = GPT_MODEL,
-                tools = [{'type': 'code_interpreter'}],
-                tool_resources={
-                    "code_interpreter": {
-                    "file_ids": self.file_ids
-                    }
-                }
+                tools = [{'type': 'code_interpreter'}]
             )
             print(f"Created chat assistant: {self.assistant.id} - {self.assistant.name}")
-
-    def get_files(self):
-        file_list = self.client.files.list()
-        self.file_ids = [file_list.data[0].id]
-        # self.file_ids = [file_list.data[0].id, file_list.data[1].id, file_list.data[2].id, file_list.data[3].id]
-        print(f"Got files: {self.file_ids}")
 
     def update_assistant(self):
         self.assistant = self.client.beta.assistants.update(
             self.assistant.id,
             instructions = ASSISTANT_INSTRUCTIONS,
             model = GPT_MODEL,
-            tools = [{'type': 'code_interpreter'}],
-            tool_resources={
-                "code_interpreter": {
-                "file_ids": self.file_ids
-                }
-            }
+            tools = [{'type': 'code_interpreter'}]
         )
         print("Updated chat assistant.")
 
@@ -110,54 +99,42 @@ class ChatAssistant:
         self.thread = self.client.beta.threads.create()
         print(f"Renewed chat assistant thread: {self.thread.id}")
 
+    def run_query(self, query):
+        """Run a BigQuery query and return the results as a DataFrame."""
+        query_job = self.bq_client.query(query)
+        return query_job.result().to_dataframe()
+
+    def analyze_query(self, query):
+        """Run a query and analyze the results using Firebase data as context."""
+        # Run the query
+        df = self.run_query(query)
+
+        # Fetch context from Firebase
+        context_ref = self.fs_client.collection('kb_contexts').document('context_id')
+        context_doc = context_ref.get()
+        if context_doc.exists:
+            context_data = context_doc.to_dict()
+            # Example: Use context data to enhance analysis
+            # This is a placeholder for actual analysis logic
+            print(f"Context data: {context_data}")
+
+        # Example analysis (placeholder)
+        analysis_result = df.describe()  # Simple statistical summary
+        print("Analysis Result:", analysis_result)
+
+        return analysis_result
+
     def get_response(self, prompt):
         print(f"New chat assistant prompt: {prompt}")
 
         if self.thread is None:
             self.renew_thread()
 
-        message = self.client.beta.threads.messages.create(
-            thread_id = self.thread.id,
-            role = 'user',
-            content=prompt
-        )
+        # Example: Extract query from prompt (placeholder logic)
+        query = "SELECT * FROM `project.dataset.table` LIMIT 10"  # Replace with actual query extraction logic
 
-        run = self.client.beta.threads.runs.create(
-            thread_id = self.thread.id,
-            assistant_id = self.assistant.id,
-            stream=True
-        )
+        # Analyze the query
+        analysis_result = self.analyze_query(query)
 
-        for chunk in run:
-            if chunk.data.object == 'thread.message' and chunk.data.content:
-                msg = chunk.data
-                for content in msg.content:
-                    # Check if the content is text
-                    if content.type == 'text':
-                        print(f"{msg.role}: {content.text.value}")
-
-                        # Send response back (delay each character for typewriter effect)
-                        for char in content.text.value:
-                            yield char
-                            time.sleep(CHARACTER_STREAM_DELAY)
-
-                        # Check and print details about annotations if they exist
-                        if content.text.annotations:
-                            for annotation in content.text.annotations:
-                                print(f"Annotation Text: {annotation.text}")
-                                print(f"File_Id: {annotation.file_path.file_id}")
-                                annotation_data = self.client.files.content(annotation.file_path.file_id)
-                                annotation_data_bytes = annotation_data.read()
-
-                                filename = annotation.text.split('/')[-1]
-
-                                with open(f"{filename}", "wb") as file:
-                                    file.write(annotation_data_bytes)
-
-                    # Check if the content is an image file and print its file ID and name
-                    elif content.type == 'image_file':
-                        print(f"Image File ID: {content.image_file.file_id}")
-                        yield f"Image File ID: {content.image_file.file_id}"
-
-            if hasattr(chunk.data, 'status'):
-                print(f"Status: {chunk.data.status}")
+        # Return the analysis result
+        return analysis_result
