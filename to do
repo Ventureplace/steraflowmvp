@@ -1,3 +1,48 @@
-clean ---> context uploads to storage or firestore ---> uploads to biqguery
+Here’s a full to-do list of the Python FastAPI endpoints you’ll need to build for Steraflow, based on:
+	•	Your existing BigQuery + Firestore use cases
+	•	The drag-and-drop quote upload logic from the screenshots
+	•	Steraflow’s website positioning (agent, analytics, knowledgebase, chat, etc.)
 
-upload clean data to context to firestore
+⸻
+
+✅ Core To-Do List: FastAPI Endpoints for Steraflow
+
+🔹 BigQuery API
+	1.	/query/run – Accepts a SQL string or structured query object, returns results
+	2.	/query/save – Save custom queries to Firestore with metadata (e.g. for reuse)
+	3.	/query/history – Returns list of past queries for a user
+	4.	/query/metadata – Exposes schema info for tables used in the app
+
+🔹 Firestore API
+	5.	/files/metadata/save – Store metadata (supplier, format, source) for each uploaded file
+	6.	/files/metadata/get – Retrieve metadata by file ID or query
+	7.	/chat/history/save – Store user-agent chat history
+	8.	/chat/history/get – Retrieve past conversations for retrieval
+	9.	/agent/context/save – Save structured knowledge for RAG (ex: from quotes)
+	10.	/agent/context/get – Retrieve knowledge chunks by tag, product, or time
+
+🔹 Upload API (based on screenshots)
+	11.	/upload/link/create – Generate unique upload links (drag-and-drop, S3/Firebase-backed)
+	12.	/upload/submit – Sellers can POST files here directly (chatbot link will point here)
+	13.	/upload/confirm – Optional: confirm receipt & notify user who sent it
+	14.	/upload/list – List all uploaded files per supplier, time, or product
+
+🔹 Knowledgebase & Parsing API
+	15.	/parse/email – Parse forwarded emails and extract quote metadata
+	16.	/parse/pdf – Extract line items, BOM details, supplier info from PDF
+	17.	/parse/chat – Parse WhatsApp or WeChat exports for procurement intel
+	18.	/knowledgebase/add – Add structured text to internal KB with tags
+	19.	/knowledgebase/query – Retrieve KB entries for agent response
+
+🔹 Agent Interaction API
+	20.	/agent/ask – Main endpoint for the user to ask questions (connects to LangChain/OpenAI)
+	21.	/agent/followup – Follow-up on same thread with more context
+	22.	/agent/actions/run – Trigger specific downstream actions (ex: quote compare, generate summary)
+
+🔹 User & Auth (if needed)
+	23.	/user/signup
+	24.	/user/login
+	25.	/user/preferences/update – Save supplier prefs, notification settings
+	26.	/user/invite-supplier – For seller onboarding flow via email/chatbot
+
+⸻

@@ -162,3 +162,8 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+
+production-build-v1-firebase-adminsdk-fbsvc-9f9ca003be.json
+production-build-v1-23b953a13a62.json
+

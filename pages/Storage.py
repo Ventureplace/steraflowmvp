@@ -1,5 +1,5 @@
 import streamlit as st
-import utils
+import tests.utils as utils
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 import os

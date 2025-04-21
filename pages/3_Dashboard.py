@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from openai import OpenAI
-import utils
+import tests.utils as utils
 import base64
 from scipy import stats
 import io
