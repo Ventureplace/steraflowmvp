@@ -167,3 +167,4 @@ cython_debug/
 production-build-v1-firebase-adminsdk-fbsvc-9f9ca003be.json
 production-build-v1-23b953a13a62.json
 
+client_secret.json

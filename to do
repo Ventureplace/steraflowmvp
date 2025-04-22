@@ -12,6 +12,7 @@ Here’s a full to-do list of the Python FastAPI endpoints you’ll need to buil
 	2.	/query/save – Save custom queries to Firestore with metadata (e.g. for reuse)
 	3.	/query/history – Returns list of past queries for a user
 	4.	/query/metadata – Exposes schema info for tables used in the app
+    5.	/query/run – Accepts a SQL string or structured query object, returns results( using vertex bigquery api)
 
 🔹 Firestore API
 	5.	/files/metadata/save – Store metadata (supplier, format, source) for each uploaded file
@@ -38,11 +39,13 @@ Here’s a full to-do list of the Python FastAPI endpoints you’ll need to buil
 	20.	/agent/ask – Main endpoint for the user to ask questions (connects to LangChain/OpenAI)
 	21.	/agent/followup – Follow-up on same thread with more context
 	22.	/agent/actions/run – Trigger specific downstream actions (ex: quote compare, generate summary)
+    23. /agent/actions/translate – Translate text to users language
 
 🔹 User & Auth (if needed)
 	23.	/user/signup
 	24.	/user/login
 	25.	/user/preferences/update – Save supplier prefs, notification settings
 	26.	/user/invite-supplier – For seller onboarding flow via email/chatbot
+    26. connect to auth to all api
 
 ⸻

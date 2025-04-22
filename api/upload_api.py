@@ -26,13 +26,12 @@ except ValueError:
         credentials.Certificate(cred_path),
         {
             # This bucket name is visible in Firebase console
-            "storageBucket": "gs://production-build-v1.firebasestorage.app"
+            "storageBucket": "production-build-v1.firebasestorage.app"
         }
     )
 
 db = firestore.client()
-bucket = fb_storage.bucket("gs://production-build-v1.firebasestorage.app")
-
+bucket = fb_storage.bucket("production-build-v1.firebasestorage.app")
 # ---------- FastAPI router ----------
 router = APIRouter(prefix="/api/v1")
 
@@ -173,10 +172,10 @@ async def test_upload(file: UploadFile = File(...)):
         blob_path = f"test_uploads/{file.filename}"
         blob = bucket.blob(blob_path)
         blob.upload_from_file(file.file, content_type=file.content_type)
-        blob.make_public()
+        public_url = f"https://storage.googleapis.com/{bucket.name}/{blob_path}"
         return {
             "status": "success",
-            "public_url": blob.public_url,
+            "public_url": public_url,
             "path": blob_path
         }
     except Exception as e:
