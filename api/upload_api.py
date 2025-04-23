@@ -46,6 +46,26 @@ class LinkCreateResponse(BaseModel):
     upload_url: str
     expires_at: datetime.datetime
 
+# ---------- Enhanced Upload Models ----------
+class FileValidationConfig(BaseModel):
+    allowed_formats: List[str] = ["pdf", "xlsx", "csv", "doc", "docx"]
+    max_file_size_mb: int = 50
+    virus_scan: bool = True
+    content_validation: bool = True
+
+class BatchUploadRequest(BaseModel):
+    files_metadata: List[Dict[str, Any]]
+    validation_config: Optional[FileValidationConfig] = None
+
+class ProcessingStatus(BaseModel):
+    file_id: str
+    status: str  # pending, processing, completed, failed
+    steps_completed: List[str] = []
+    current_step: Optional[str] = None
+    error: Optional[str] = None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
 # ---------- /upload/link/create ----------
 @router.post("/upload/link/create", response_model=LinkCreateResponse)
 async def create_upload_link(payload: LinkCreateRequest):
@@ -180,4 +200,163 @@ async def test_upload(file: UploadFile = File(...)):
         }
     except Exception as e:
         logging.exception("Test upload failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ---------- File Validation & Processing ----------
+def validate_file(file: UploadFile, config: FileValidationConfig) -> List[str]:
+    """Validate file against configuration"""
+    errors = []
+    
+    # Check file format
+    file_format = file.filename.split(".")[-1].lower()
+    if file_format not in config.allowed_formats:
+        errors.append(f"File format {file_format} not allowed. Allowed formats: {config.allowed_formats}")
+    
+    # Check file size
+    file.file.seek(0, 2)  # Seek to end
+    size_mb = file.file.tell() / (1024 * 1024)
+    file.file.seek(0)  # Reset position
+    
+    if size_mb > config.max_file_size_mb:
+        errors.append(f"File size {size_mb:.1f}MB exceeds maximum allowed size of {config.max_file_size_mb}MB")
+    
+    return errors
+
+@router.post("/upload/batch")
+async def batch_upload(request: BatchUploadRequest):
+    """Upload multiple files in a batch with shared configuration"""
+    try:
+        results = []
+        for metadata in request.files_metadata:
+            link_response = await create_upload_link(LinkCreateRequest(
+                supplier=metadata.get("supplier"),
+                product=metadata.get("product")
+            ))
+            results.append({
+                "link_id": link_response.link_id,
+                "upload_url": link_response.upload_url,
+                "metadata": metadata
+            })
+        
+        return {
+            "batch_id": str(uuid.uuid4()),
+            "uploads": results
+        }
+    except Exception as e:
+        logging.exception("Batch upload creation failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload/submit/validated")
+async def upload_submit_validated(
+    link_id: str,
+    file: UploadFile = File(...),
+    validation_config: Optional[FileValidationConfig] = None
+):
+    """Enhanced file upload with validation and processing status tracking"""
+    try:
+        # Use default config if none provided
+        config = validation_config or FileValidationConfig()
+        
+        # Validate file
+        errors = validate_file(file, config)
+        if errors:
+            raise HTTPException(status_code=400, detail={"validation_errors": errors})
+        
+        # Create processing status
+        status_id = str(uuid.uuid4())
+        status = ProcessingStatus(
+            file_id=status_id,
+            status="pending",
+            created_at=datetime.datetime.utcnow(),
+            updated_at=datetime.datetime.utcnow()
+        )
+        
+        # Store status in Firestore
+        db.collection("file_processing_status").document(status_id).set(status.dict())
+        
+        # Perform regular upload
+        upload_result = await upload_submit(link_id, file)
+        
+        # Update status with file_id
+        db.collection("file_processing_status").document(status_id).update({
+            "file_id": upload_result["file_id"],
+            "status": "completed",
+            "steps_completed": ["validation", "upload"],
+            "updated_at": datetime.datetime.utcnow()
+        })
+        
+        return {**upload_result, "status_id": status_id}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logging.exception("Validated upload failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/upload/status/{status_id}")
+async def get_upload_status(status_id: str):
+    """Get the current status of a file upload and processing"""
+    try:
+        doc = db.collection("file_processing_status").document(status_id).get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Status not found")
+        return doc.to_dict()
+    except Exception as e:
+        logging.exception("Status check failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/upload/delete/{file_id}")
+async def delete_upload(file_id: str):
+    """Delete an uploaded file and its metadata"""
+    try:
+        # Delete from Storage
+        blob = bucket.blob(file_id)
+        if blob.exists():
+            blob.delete()
+        
+        # Delete metadata
+        db.collection("files_metadata").document(file_id).delete()
+        
+        return {"status": "deleted", "file_id": file_id}
+    except Exception as e:
+        logging.exception("Delete failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload/process/{file_id}")
+async def process_upload(file_id: str):
+    """Trigger post-upload processing for a file"""
+    try:
+        # Get file metadata
+        doc = db.collection("files_metadata").document(file_id).get()
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        metadata = doc.to_dict()
+        file_format = metadata.get("file_format", "").lower()
+        
+        # Create processing status
+        status = ProcessingStatus(
+            file_id=file_id,
+            status="processing",
+            created_at=datetime.datetime.utcnow(),
+            updated_at=datetime.datetime.utcnow()
+        )
+        
+        status_id = str(uuid.uuid4())
+        db.collection("file_processing_status").document(status_id).set(status.dict())
+        
+        # TODO: Add actual processing logic based on file type
+        # For now, just mark as completed
+        db.collection("file_processing_status").document(status_id).update({
+            "status": "completed",
+            "steps_completed": ["processing"],
+            "updated_at": datetime.datetime.utcnow()
+        })
+        
+        return {
+            "status": "processing_complete",
+            "file_id": file_id,
+            "status_id": status_id
+        }
+    except Exception as e:
+        logging.exception("Processing failed")
         raise HTTPException(status_code=500, detail=str(e))

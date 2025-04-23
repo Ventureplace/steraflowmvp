@@ -377,3 +377,192 @@ async def list_knowledgebase_entries(uid: str = Depends(get_current_uid),
     except Exception as e:
         logging.exception("Knowledge‑base list failed")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ---------- Unified Search Models ----------
+class UnifiedSearchRequest(BaseModel):
+    query: str
+    sources: List[str] = ["knowledgebase", "bigquery", "firestore"]  # Which sources to search
+    max_results: int = 10
+    filters: Optional[Dict[str, Any]] = None
+    date_range: Optional[Dict[str, datetime.datetime]] = None
+
+@router.post("/unified/search")
+async def unified_search(payload: UnifiedSearchRequest, uid: str = Depends(get_current_uid)):
+    """
+    Search across multiple data sources (knowledgebase, BigQuery, Firestore) 
+    and return unified results.
+    """
+    results = {
+        "knowledgebase": [],
+        "bigquery": [],
+        "firestore": [],
+        "metadata": {
+            "total_results": 0,
+            "search_time": None
+        }
+    }
+    
+    start_time = datetime.datetime.utcnow()
+    
+    try:
+        # Search Knowledgebase if requested
+        if "knowledgebase" in payload.sources:
+            kb_query = fs_db.collection("agent_context").where("user_id", "==", uid)
+            if payload.filters and "tag" in payload.filters:
+                kb_query = kb_query.where("tag", "==", payload.filters["tag"])
+            kb_docs = kb_query.limit(payload.max_results).stream()
+            results["knowledgebase"] = [d.to_dict() | {"id": d.id} for d in kb_docs]
+
+        # Search Firestore if requested
+        if "firestore" in payload.sources:
+            # Add logic to search relevant Firestore collections
+            # This could include chat_history, files_metadata, etc.
+            pass
+
+        # Search BigQuery if requested (requires BigQuery client setup)
+        if "bigquery" in payload.sources:
+            # Add logic to execute BigQuery searches
+            pass
+
+        results["metadata"]["search_time"] = (datetime.datetime.utcnow() - start_time).total_seconds()
+        results["metadata"]["total_results"] = sum(len(r) for r in results.values() if isinstance(r, list))
+        
+        return results
+    except Exception as e:
+        logging.exception("Unified search failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ---------- Context Management Models ----------
+class AgentContext(BaseModel):
+    context_id: Optional[str] = None
+    user_id: str
+    context_type: str  # conversation, research, analysis
+    metadata: Dict[str, Any] = {}
+    references: List[Dict[str, str]] = []  # References to knowledge chunks, BigQuery results, etc
+    created_at: Optional[datetime.datetime] = None
+    updated_at: Optional[datetime.datetime] = None
+
+@router.post("/agent/context/create")
+async def create_agent_context(context: AgentContext, uid: str = Depends(get_current_uid)):
+    """Create a new context for the agent to work with"""
+    try:
+        context.user_id = uid
+        context.created_at = datetime.datetime.utcnow()
+        context.updated_at = context.created_at
+        
+        doc_ref = fs_db.collection("agent_contexts").document()
+        doc_ref.set(context.dict(exclude_none=True))
+        
+        return {"context_id": doc_ref.id, "status": "created"}
+    except Exception as e:
+        logging.exception("Failed to create agent context")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/agent/context/{context_id}/update")
+async def update_agent_context(
+    context_id: str,
+    updates: Dict[str, Any],
+    uid: str = Depends(get_current_uid)
+):
+    """Update an existing agent context with new information"""
+    try:
+        doc_ref = fs_db.collection("agent_contexts").document(context_id)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Context not found")
+            
+        if doc.to_dict()["user_id"] != uid:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        updates["updated_at"] = datetime.datetime.utcnow()
+        doc_ref.update(updates)
+        
+        return {"status": "updated"}
+    except Exception as e:
+        logging.exception("Failed to update agent context")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/agent/context/{context_id}")
+async def get_agent_context(context_id: str, uid: str = Depends(get_current_uid)):
+    """Retrieve an agent context by ID"""
+    try:
+        doc = fs_db.collection("agent_contexts").document(context_id).get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Context not found")
+            
+        context_data = doc.to_dict()
+        if context_data["user_id"] != uid:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        return context_data
+    except Exception as e:
+        logging.exception("Failed to get agent context")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ---------- Data Analysis Models ----------
+class AnalysisRequest(BaseModel):
+    context_id: str
+    analysis_type: str  # summary, trends, comparison
+    data_sources: List[str]
+    filters: Optional[Dict[str, Any]] = None
+    time_range: Optional[Dict[str, datetime.datetime]] = None
+
+class DataAggregationRequest(BaseModel):
+    sources: List[Dict[str, Any]]  # List of data sources and their filters
+    aggregation_type: str  # combine, merge, correlate
+    output_format: str = "json"
+
+@router.post("/analysis/aggregate")
+async def aggregate_data(payload: DataAggregationRequest, uid: str = Depends(get_current_uid)):
+    """
+    Aggregate data from multiple sources based on specified criteria
+    """
+    try:
+        results = {
+            "aggregated_data": [],
+            "metadata": {
+                "sources_used": [],
+                "record_count": 0,
+                "timestamp": datetime.datetime.utcnow()
+            }
+        }
+        
+        for source in payload.sources:
+            # Add logic to fetch and aggregate data from each source
+            # This could involve BigQuery queries, Firestore reads, etc.
+            pass
+            
+        return results
+    except Exception as e:
+        logging.exception("Data aggregation failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/analysis/insights")
+async def generate_insights(payload: AnalysisRequest, uid: str = Depends(get_current_uid)):
+    """
+    Generate insights from aggregated data based on analysis type
+    """
+    try:
+        # Verify context exists and belongs to user
+        context = await get_agent_context(payload.context_id, uid)
+        
+        insights = {
+            "summary": [],
+            "key_findings": [],
+            "recommendations": [],
+            "metadata": {
+                "analysis_type": payload.analysis_type,
+                "data_sources": payload.data_sources,
+                "timestamp": datetime.datetime.utcnow()
+            }
+        }
+        
+        # Add logic to analyze data and generate insights
+        # This could involve statistical analysis, trend detection, etc.
+        
+        return insights
+    except Exception as e:
+        logging.exception("Insights generation failed")
+        raise HTTPException(status_code=500, detail=str(e))
