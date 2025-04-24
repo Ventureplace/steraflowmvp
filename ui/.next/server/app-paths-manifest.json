@@ -1,0 +1,8 @@
+{
+  "/connections/page": "app/connections/page.js",
+  "/chat/page": "app/chat/page.js",
+  "/quotes/add/page": "app/quotes/add/page.js",
+  "/projects/page": "app/projects/page.js",
+  "/projects/[id]/page": "app/projects/[id]/page.js",
+  "/quotes/compare/page": "app/quotes/compare/page.js"
+}
